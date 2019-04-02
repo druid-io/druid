@@ -21,8 +21,11 @@ package org.apache.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.druid.guice.annotations.PublicApi;
+import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.parsers.TimestampParser;
 import org.joda.time.DateTime;
 
@@ -49,7 +52,10 @@ public class TimestampSpec
   private final String timestampFormat;
   // this value should never be set for production data
   private final DateTime missingValue;
-  /** This field is a derivative of {@link #timestampFormat}; not checked in {@link #equals} and {@link #hashCode} */
+  private final String timeZone;
+  /**
+   * This field is a derivative of {@link #timestampFormat}; not checked in {@link #equals} and {@link #hashCode}
+   */
   private final Function<Object, DateTime> timestampConverter;
 
   // remember last value parsed
@@ -60,15 +66,27 @@ public class TimestampSpec
       @JsonProperty("column") String timestampColumn,
       @JsonProperty("format") String format,
       // this value should never be set for production data
-      @JsonProperty("missingValue") DateTime missingValue
+      @JsonProperty("missingValue") DateTime missingValue,
+      @JsonProperty("timeZone") String timeZone
   )
   {
     this.timestampColumn = (timestampColumn == null) ? DEFAULT_COLUMN : timestampColumn;
     this.timestampFormat = format == null ? DEFAULT_FORMAT : format;
-    this.timestampConverter = TimestampParser.createObjectTimestampParser(timestampFormat);
+    this.timeZone = StringUtils.isBlank(timeZone) ? DateTimes.UTC_TIMEZONE : timeZone;
+    this.timestampConverter = TimestampParser.createObjectTimestampParser(timestampFormat, this.timeZone);
     this.missingValue = missingValue == null
                         ? DEFAULT_MISSING_VALUE
                         : missingValue;
+  }
+
+  @VisibleForTesting
+  public TimestampSpec(
+      String timestampColumn,
+      String format,
+      DateTime missingValue
+  )
+  {
+    this(timestampColumn, format, missingValue, null);
   }
 
   @JsonProperty("column")

@@ -249,10 +249,23 @@ public class FlattenJSONBenchmarkUtil
     String[] dimsArray1 = {String.valueOf(rng.nextInt()), String.valueOf(rng.nextInt()), String.valueOf(rng.nextInt())};
     BenchmarkEvent nestedDims2 = new BenchmarkEvent(
         null,
-        null, null, String.valueOf(rng.nextInt()), String.valueOf(rng.nextInt()), String.valueOf(rng.nextInt()), String.valueOf(rng.nextInt()),
-        null, null, null, null,
-        null, null, null, null,
-        dimsArray1, null, null
+        null,
+        null,
+        String.valueOf(rng.nextInt()),
+        String.valueOf(rng.nextInt()),
+        String.valueOf(rng.nextInt()),
+        String.valueOf(rng.nextInt()),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        dimsArray1,
+        null,
+        null
     );
 
     Long[] metricsArray1 = {rng.nextLong(), rng.nextLong(), rng.nextLong(), rng.nextLong()};
