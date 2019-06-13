@@ -120,6 +120,10 @@ public class BrokerServerView implements TimelineServerView
           return false;
         }
 
+        if (input.rhs == null) {
+          return true;
+        }
+
         if (segmentWatcherConfig.getWatchedDataSources() != null
             && !segmentWatcherConfig.getWatchedDataSources().contains(input.rhs.getDataSource())) {
           return false;
