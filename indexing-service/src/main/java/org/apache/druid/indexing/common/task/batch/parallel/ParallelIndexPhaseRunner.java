@@ -39,6 +39,7 @@ import org.apache.druid.indexing.common.task.Task;
 import org.apache.druid.indexing.common.task.batch.parallel.TaskMonitor.MonitorEntry;
 import org.apache.druid.indexing.common.task.batch.parallel.TaskMonitor.SubTaskCompleteEvent;
 import org.apache.druid.java.util.common.ISE;
+import org.apache.druid.java.util.common.concurrent.Execs;
 import org.apache.druid.java.util.common.logger.Logger;
 
 import javax.annotation.Nullable;
@@ -284,7 +285,9 @@ public abstract class ParallelIndexPhaseRunner<SubTaskType extends Task, SubTask
             LOG.error(t, "Error while running a task for subTaskSpec[%s]", spec);
             taskCompleteEvents.offer(SubTaskCompleteEvent.fail(spec, t));
           }
-        }
+        },
+        // The callback is mostly non-blocking and quick, so it's OK to schedule it using directExecutor()
+        Execs.directExecutor()
     );
   }
 
