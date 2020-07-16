@@ -24,14 +24,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Resource
 {
-  public static final Resource STATE_RESOURCE = new Resource("STATE", ResourceType.STATE);
-
-  private final String name;
+  private final ResourceName name;
   private final ResourceType type;
 
   @JsonCreator
   public Resource(
-      @JsonProperty("name") String name,
+      @JsonProperty("name") ResourceName name,
       @JsonProperty("type") ResourceType type
   )
   {
@@ -42,7 +40,7 @@ public class Resource
   @JsonProperty
   public String getName()
   {
-    return name;
+    return name.toString();
   }
 
   @JsonProperty
@@ -63,7 +61,7 @@ public class Resource
 
     Resource resource = (Resource) o;
 
-    if (!name.equals(resource.name)) {
+    if (!name.toString().equals(resource.name.toString())) {
       return false;
     }
     return type == resource.type;
@@ -73,7 +71,7 @@ public class Resource
   @Override
   public int hashCode()
   {
-    int result = name.hashCode();
+    int result = name.toString().hashCode();
     result = 31 * result + type.hashCode();
     return result;
   }

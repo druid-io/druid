@@ -27,17 +27,9 @@ import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceAction;
+import org.apache.druid.server.security.ResourceName;
 import org.apache.druid.server.security.ResourceType;
 
-/**
- * Use this ResourceFilter at end points where Druid Cluster configuration is read or written
- * Here are some example paths where this filter is used -
- * - druid/worker/v1
- * - druid/indexer/v1
- * - druid/coordinator/v1/config
- * Note - Currently the resource name for all end points is set to "CONFIG" however if more fine grained access control
- * is required the resource name can be set to specific config properties.
- */
 public class ConfigResourceFilter extends AbstractResourceFilter
 {
   @Inject
@@ -52,7 +44,7 @@ public class ConfigResourceFilter extends AbstractResourceFilter
   public ContainerRequest filter(ContainerRequest request)
   {
     final ResourceAction resourceAction = new ResourceAction(
-        new Resource("CONFIG", ResourceType.CONFIG),
+        new Resource(this.resourceName(), ResourceType.CONFIG),
         getAction(request)
     );
 
@@ -67,5 +59,10 @@ public class ConfigResourceFilter extends AbstractResourceFilter
     }
 
     return request;
+  }
+
+  public ResourceName resourceName()
+  {
+    return ResourceName.CONFIG;
   }
 }

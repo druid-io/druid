@@ -27,7 +27,7 @@ import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import org.apache.druid.server.coordinator.DruidCoordinator;
 import org.apache.druid.server.coordinator.LoadQueuePeon;
-import org.apache.druid.server.http.security.StateResourceFilter;
+import org.apache.druid.server.http.security.StateStatusResourceFilter;
 import org.apache.druid.timeline.DataSegment;
 
 import javax.ws.rs.GET;
@@ -55,7 +55,7 @@ public class CoordinatorResource
 
   @GET
   @Path("/leader")
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters(StateStatusResourceFilter.class)
   @Produces(MediaType.APPLICATION_JSON)
   public Response getLeader()
   {
@@ -81,7 +81,7 @@ public class CoordinatorResource
 
   @GET
   @Path("/loadstatus")
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters(StateStatusResourceFilter.class)
   @Produces(MediaType.APPLICATION_JSON)
   public Response getLoadStatus(
       @QueryParam("simple") String simple,
@@ -100,7 +100,7 @@ public class CoordinatorResource
 
   @GET
   @Path("/loadqueue")
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters(StateStatusResourceFilter.class)
   @Produces(MediaType.APPLICATION_JSON)
   public Response getLoadQueue(
       @QueryParam("simple") String simple,

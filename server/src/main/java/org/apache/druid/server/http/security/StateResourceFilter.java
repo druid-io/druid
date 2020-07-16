@@ -19,7 +19,6 @@
 
 package org.apache.druid.server.http.security;
 
-import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ContainerRequest;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.AuthorizationUtils;
@@ -27,25 +26,11 @@ import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.ForbiddenException;
 import org.apache.druid.server.security.Resource;
 import org.apache.druid.server.security.ResourceAction;
+import org.apache.druid.server.security.ResourceName;
+import org.apache.druid.server.security.ResourceType;
 
-/**
- * Use this ResourceFilter at end points where Druid Cluster State is read or written
- * Here are some example paths where this filter is used -
- * - druid/broker/v1
- * - druid/coordinator/v1
- * - druid/historical/v1
- * - druid/indexer/v1
- * - druid/coordinator/v1/rules
- * - druid/coordinator/v1/tiers
- * - druid/worker/v1
- * - druid/coordinator/v1/servers
- * - status
- * Note - Currently the resource name for all end points is set to "STATE" however if more fine grained access control
- * is required the resource name can be set to specific state properties.
- */
-public class StateResourceFilter extends AbstractResourceFilter
+public abstract class StateResourceFilter extends AbstractResourceFilter
 {
-  @Inject
   public StateResourceFilter(AuthorizerMapper authorizerMapper)
   {
     super(authorizerMapper);
@@ -55,7 +40,7 @@ public class StateResourceFilter extends AbstractResourceFilter
   public ContainerRequest filter(ContainerRequest request)
   {
     final ResourceAction resourceAction = new ResourceAction(
-        Resource.STATE_RESOURCE,
+        new Resource(this.resourceName(), ResourceType.STATE),
         getAction(request)
     );
 
@@ -71,4 +56,6 @@ public class StateResourceFilter extends AbstractResourceFilter
 
     return request;
   }
+
+  public abstract ResourceName resourceName();
 }

@@ -17,27 +17,25 @@
  * under the License.
  */
 
-package org.apache.druid.indexing.overlord.sampler;
+package org.apache.druid.server.http.security;
 
-import com.google.common.base.Preconditions;
-import com.sun.jersey.spi.container.ResourceFilters;
-import org.apache.druid.server.http.security.StateSamplerResourceFilter;
+import com.google.inject.Inject;
+import org.apache.druid.server.security.AuthorizerMapper;
+import org.apache.druid.server.security.ResourceName;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-
-@Path("/druid/indexer/v1/sampler")
-public class SamplerResource
+public class StateStatusResourceFilter extends StateResourceFilter
 {
-  @POST
-  @Consumes(MediaType.APPLICATION_JSON)
-  @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateSamplerResourceFilter.class)
-  public SamplerResponse post(final SamplerSpec sampler)
+  @Inject
+  public StateStatusResourceFilter(
+      AuthorizerMapper authorizerMapper
+  )
   {
-    return Preconditions.checkNotNull(sampler, "Request body cannot be empty").sample();
+    super(authorizerMapper);
+  }
+
+  @Override
+  public ResourceName resourceName()
+  {
+    return ResourceName.STATUS;
   }
 }
