@@ -21,8 +21,10 @@ package org.apache.druid.indexing.common.task.batch.parallel;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.indexer.TaskStatus;
@@ -36,8 +38,11 @@ import org.apache.druid.indexing.common.task.IndexTask;
 import org.apache.druid.indexing.common.task.SegmentAllocators;
 import org.apache.druid.indexing.common.task.TaskResource;
 import org.apache.druid.indexing.common.task.Tasks;
+import org.apache.druid.indexing.stats.NoopIngestionMetrics;
+import org.apache.druid.indexing.stats.NoopIngestionMetricsSnapshot;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularity;
+import org.apache.druid.java.util.common.io.Closer;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.druid.query.DruidMetrics;
@@ -179,10 +184,6 @@ public class SinglePhaseSubTask extends AbstractBatchIndexTask
           + "Forced to use timeChunk lock."
       );
     }
-    final InputSource inputSource = ingestionSchema.getIOConfig().getNonNullInputSource(
-        ingestionSchema.getDataSchema().getParser()
-    );
-
     final ParallelIndexSupervisorTaskClient taskClient = toolbox.getSupervisorTaskClientFactory().build(
         new ClientBasedTaskInfoProvider(toolbox.getIndexingServiceClient()),
         getId(),
@@ -190,24 +191,44 @@ public class SinglePhaseSubTask extends AbstractBatchIndexTask
         ingestionSchema.getTuningConfig().getChatHandlerTimeout(),
         ingestionSchema.getTuningConfig().getChatHandlerNumRetries()
     );
-    final Set<DataSegment> pushedSegments = generateAndPushSegments(
-        toolbox,
-        taskClient,
-        inputSource,
-        toolbox.getIndexingTmpDir()
-    );
 
-    // Find inputSegments overshadowed by pushedSegments
-    final Set<DataSegment> allSegments = new HashSet<>(getTaskLockHelper().getLockedExistingSegments());
-    allSegments.addAll(pushedSegments);
-    final VersionedIntervalTimeline<String, DataSegment> timeline = VersionedIntervalTimeline.forSegments(allSegments);
-    final Set<DataSegment> oldSegments = FluentIterable.from(timeline.findFullyOvershadowed())
-                                                       .transformAndConcat(TimelineObjectHolder::getObject)
-                                                       .transform(PartitionChunk::getObject)
-                                                       .toSet();
-    taskClient.report(supervisorTaskId, new PushedSegmentsReport(getId(), oldSegments, pushedSegments));
+    try {
+      final InputSource inputSource = ingestionSchema.getIOConfig().getNonNullInputSource(
+          ingestionSchema.getDataSchema().getParser()
+      );
 
-    return TaskStatus.success(getId());
+      final Set<DataSegment> pushedSegments = generateAndPushSegments(
+          toolbox,
+          taskClient,
+          inputSource,
+          toolbox.getIndexingTmpDir()
+      );
+
+      // Find inputSegments overshadowed by pushedSegments
+      final Set<DataSegment> allSegments = new HashSet<>(getTaskLockHelper().getLockedExistingSegments());
+      allSegments.addAll(pushedSegments);
+      final VersionedIntervalTimeline<String, DataSegment> timeline = VersionedIntervalTimeline.forSegments(allSegments);
+      final Set<DataSegment> oldSegments = FluentIterable.from(timeline.findFullyOvershadowed())
+                                                         .transformAndConcat(TimelineObjectHolder::getObject)
+                                                         .transform(PartitionChunk::getObject)
+                                                         .toSet();
+      taskClient.report(
+          supervisorTaskId,
+          new PushedSegmentsReport(
+              getId(),
+              oldSegments,
+              pushedSegments,
+              NoopIngestionMetricsSnapshot.INSTANCE
+          )
+      );
+
+      return TaskStatus.success(getId());
+    }
+    catch (Exception e) {
+      // We don't report exception here. The supervisor task will get the details of exception from the Overlord.
+      taskClient.report(supervisorTaskId, new FailedSubtaskReport(getId()));
+      throw e;
+    }
   }
 
   @Override
@@ -264,7 +285,8 @@ public class SinglePhaseSubTask extends AbstractBatchIndexTask
    *
    * @return true if generated segments are successfully published, otherwise false
    */
-  private Set<DataSegment> generateAndPushSegments(
+  @VisibleForTesting
+  Set<DataSegment> generateAndPushSegments(
       final TaskToolbox toolbox,
       final ParallelIndexSupervisorTaskClient taskClient,
       final InputSource inputSource,
@@ -285,6 +307,14 @@ public class SinglePhaseSubTask extends AbstractBatchIndexTask
     );
 
     final ParallelIndexTuningConfig tuningConfig = ingestionSchema.getTuningConfig();
+    final LiveMetricsReporter liveMetricsReporter = new LiveMetricsReporter(
+        supervisorTaskId,
+        getId(),
+        taskClient,
+        NoopIngestionMetrics.INSTANCE,
+        tuningConfig.getTaskStatusCheckPeriodMs(),
+        tuningConfig.getChatHandlerNumRetries()
+    );
     final DynamicPartitionsSpec partitionsSpec = (DynamicPartitionsSpec) tuningConfig.getGivenOrDefaultPartitionsSpec();
     final long pushTimeout = tuningConfig.getPushTimeout();
     final boolean explicitIntervals = granularitySpec.bucketIntervals().isPresent();
@@ -320,7 +350,16 @@ public class SinglePhaseSubTask extends AbstractBatchIndexTask
             tuningConfig.getMaxSavedParseExceptions()
         )
     );
-    boolean exceptionOccurred = false;
+    MutableBoolean exceptionOccurred = new MutableBoolean(false);
+    final Closer closer = Closer.create();
+    closer.register(liveMetricsReporter::stop);
+    closer.register(() -> {
+      if (exceptionOccurred.isTrue()) {
+        appenderator.closeNow();
+      } else {
+        appenderator.close();
+      }
+    });
     try (
         final BatchAppenderatorDriver driver = BatchAppenderators.newDriver(appenderator, toolbox, segmentAllocator);
         final CloseableIterator<InputRow> inputRowIterator = AbstractBatchIndexTask.inputSourceReader(
@@ -342,6 +381,7 @@ public class SinglePhaseSubTask extends AbstractBatchIndexTask
             parseExceptionHandler
         )
     ) {
+      liveMetricsReporter.start();
       driver.startJob();
 
       final Set<DataSegment> pushedSegments = new HashSet<>();
@@ -379,24 +419,21 @@ public class SinglePhaseSubTask extends AbstractBatchIndexTask
       pushedSegments.addAll(pushed.getSegments());
       LOG.info("Pushed [%s] segments", pushed.getSegments().size());
       LOG.infoSegments(pushed.getSegments(), "Pushed segments");
-      appenderator.close();
 
       return pushedSegments;
     }
     catch (TimeoutException | ExecutionException e) {
-      exceptionOccurred = true;
+      exceptionOccurred.setTrue();
       throw new RuntimeException(e);
     }
     catch (Exception e) {
-      exceptionOccurred = true;
+      exceptionOccurred.setTrue();
       throw e;
     }
     finally {
-      if (exceptionOccurred) {
-        appenderator.closeNow();
-      } else {
-        appenderator.close();
-      }
+      // closer cannot be closed using try-with-resources because how to close appenderator should be different
+      // when an exception is thrown. Note that catch or finally blocks are run after the resource has been closed.
+      closer.close();
     }
   }
 }
