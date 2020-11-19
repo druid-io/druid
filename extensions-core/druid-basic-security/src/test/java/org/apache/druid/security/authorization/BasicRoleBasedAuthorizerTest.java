@@ -34,6 +34,7 @@ import org.apache.druid.security.basic.authorization.db.updater.CoordinatorBasic
 import org.apache.druid.security.basic.authorization.entity.BasicAuthorizerGroupMapping;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthenticationResult;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.Resource;
@@ -44,6 +45,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.BasicAttributes;
@@ -54,6 +57,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@RunWith(Parameterized.class)
 public class BasicRoleBasedAuthorizerTest
 {
   private static final String DB_AUTHORIZER_NAME = "metadata";
@@ -73,6 +77,18 @@ public class BasicRoleBasedAuthorizerTest
 
   private SearchResult userSearchResult;
   private SearchResult adminSearchResult;
+  private final String authVersion;
+
+  @Parameterized.Parameters(name = "{index}: authVersion={0}")
+  public static Iterable<String> data()
+  {
+    return Arrays.asList(AuthConfig.AUTH_VERSION_1, AuthConfig.AUTH_VERSION_2);
+  }
+
+  public BasicRoleBasedAuthorizerTest(String authVersion)
+  {
+    this.authVersion = authVersion;
+  }
 
   @Before
   public void setUp()
@@ -115,7 +131,7 @@ public class BasicRoleBasedAuthorizerTest
                     null,
                     new LDAPRoleProvider(null, groupFilters)
                 )
-            )
+            ), authVersion
         ),
         connector,
         tablesConfig,
@@ -171,14 +187,16 @@ public class BasicRoleBasedAuthorizerTest
     Access access = authorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = authorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
   }
@@ -205,14 +223,16 @@ public class BasicRoleBasedAuthorizerTest
     Access access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
   }
@@ -250,21 +270,24 @@ public class BasicRoleBasedAuthorizerTest
     Access access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
 
@@ -275,21 +298,24 @@ public class BasicRoleBasedAuthorizerTest
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
   }
@@ -328,21 +354,24 @@ public class BasicRoleBasedAuthorizerTest
     Access access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
 
@@ -353,21 +382,24 @@ public class BasicRoleBasedAuthorizerTest
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertTrue(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
   }
@@ -395,28 +427,32 @@ public class BasicRoleBasedAuthorizerTest
     Access access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("testResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.WRITE
+        Action.WRITE,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
 
     access = ldapAuthorizer.authorize(
         authenticationResult,
         new Resource("wrongResource", ResourceType.DATASOURCE),
-        Action.READ
+        Action.READ,
+        authVersion
     );
     Assert.assertFalse(access.isAllowed());
   }

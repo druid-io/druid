@@ -135,7 +135,7 @@ public class CoordinatorBasicAuthorizerResourceTest
                 null,
                 null
             )
-        )
+        ), null
     );
 
     storageUpdater = new CoordinatorBasicAuthorizerMetadataStorageUpdater(

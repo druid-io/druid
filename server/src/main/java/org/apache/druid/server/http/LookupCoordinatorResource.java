@@ -39,8 +39,18 @@ import org.apache.druid.java.util.common.RE;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.lookup.LookupsState;
 import org.apache.druid.server.http.security.ConfigResourceFilter;
+import org.apache.druid.server.http.security.ServerServerResourceFilter;
+import org.apache.druid.server.http.security.ServerUserResourceFilter;
 import org.apache.druid.server.lookup.cache.LookupCoordinatorManager;
 import org.apache.druid.server.lookup.cache.LookupExtractorFactoryMapContainer;
+import org.apache.druid.server.security.Access;
+import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthConfig;
+import org.apache.druid.server.security.AuthorizationUtils;
+import org.apache.druid.server.security.AuthorizerMapper;
+import org.apache.druid.server.security.Resource;
+import org.apache.druid.server.security.ResourceAction;
+import org.apache.druid.server.security.ResourceType;
 
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
@@ -61,44 +71,47 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
  * Contains information about lookups exposed through the coordinator
  */
 @Path("/druid/coordinator/v1/lookups")
-@ResourceFilters(ConfigResourceFilter.class)
 public class LookupCoordinatorResource
 {
   private static final Logger LOG = new Logger(LookupCoordinatorResource.class);
   private final LookupCoordinatorManager lookupCoordinatorManager;
   private final ObjectMapper smileMapper;
   private final ObjectMapper jsonMapper;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
   public LookupCoordinatorResource(
       final LookupCoordinatorManager lookupCoordinatorManager,
       final @Smile ObjectMapper smileMapper,
-      final @Json ObjectMapper jsonMapper
+      final @Json ObjectMapper jsonMapper,
+      AuthorizerMapper authorizerMapper
   )
   {
     this.smileMapper = smileMapper;
     this.jsonMapper = jsonMapper;
     this.lookupCoordinatorManager = lookupCoordinatorManager;
+    this.authorizerMapper = authorizerMapper;
   }
 
   @GET
   @Path("/config")
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
-  public Response getTiers(
-      @DefaultValue("false") @QueryParam("discover") boolean discover
-  )
+  @ResourceFilters({ ConfigResourceFilter.class, ServerUserResourceFilter.class })
+  public Response getTiers(@DefaultValue("false") @QueryParam("discover") boolean discover)
   {
     try {
       final Map<String, Map<String, LookupExtractorFactoryMapContainer>> knownLookups =
@@ -126,14 +139,18 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/config/all")
-  public Response getAllLookupSpecs()
+  @ResourceFilters(ConfigResourceFilter.class)
+  public Response getAllLookupSpecs(@Context HttpServletRequest request)
   {
     try {
-      final Map<String, Map<String, LookupExtractorFactoryMapContainer>> knownLookups = lookupCoordinatorManager
+      Map<String, Map<String, LookupExtractorFactoryMapContainer>> knownLookups = lookupCoordinatorManager
           .getKnownLookups();
       if (knownLookups == null) {
         return Response.status(Response.Status.NOT_FOUND).build();
       } else {
+        if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+          knownLookups = filterByLookupAccess(knownLookups, request, authorizerMapper, Action.READ);
+        }
         return Response.ok().entity(knownLookups).build();
       }
     }
@@ -147,6 +164,7 @@ public class LookupCoordinatorResource
   @Path("/config")
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
   @Consumes({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response updateAllLookups(
       InputStream in,
       @HeaderParam(AuditManager.X_DRUID_AUTHOR) @DefaultValue("") final String author,
@@ -166,6 +184,13 @@ public class LookupCoordinatorResource
       catch (IOException e) {
         return Response.status(Response.Status.BAD_REQUEST).entity(ServletResourceUtils.sanitizeException(e)).build();
       }
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        final Access access = AuthorizationUtils
+            .authorizeAllResourceActions(req, TIER_LOOKUP_RA_GENERATOR.apply(map, Action.WRITE), authorizerMapper);
+        if (!access.isAllowed()) {
+          return Response.status(Response.Status.FORBIDDEN).entity(access.getMessage()).build();
+        }
+      }
       if (lookupCoordinatorManager.updateLookups(map, new AuditInfo(author, comment, req.getRemoteAddr()))) {
         return Response.status(Response.Status.ACCEPTED).entity(map).build();
       } else {
@@ -181,6 +206,7 @@ public class LookupCoordinatorResource
   @DELETE
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
   @Path("/config/{tier}")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response deleteTier(
       @PathParam("tier") String tier,
       @HeaderParam(AuditManager.X_DRUID_AUTHOR) @DefaultValue("") final String author,
@@ -193,6 +219,15 @@ public class LookupCoordinatorResource
         return Response.status(Response.Status.BAD_REQUEST)
                        .entity(ServletResourceUtils.sanitizeException(new NullPointerException("`tier` required")))
                        .build();
+      }
+
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        Map<String, LookupExtractorFactoryMapContainer> tierLookups = lookupCoordinatorManager.getTierLookups(tier);
+        final Access access = AuthorizationUtils
+            .authorizeAllResourceActions(req, LOOKUP_RA_GENERATOR.apply(tierLookups, Action.WRITE), authorizerMapper);
+        if (!access.isAllowed()) {
+          return Response.status(Response.Status.FORBIDDEN).entity(access.getMessage()).build();
+        }
       }
 
       if (lookupCoordinatorManager.deleteTier(tier, new AuditInfo(author, comment, req.getRemoteAddr()))) {
@@ -210,6 +245,7 @@ public class LookupCoordinatorResource
   @DELETE
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
   @Path("/config/{tier}/{lookup}")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response deleteLookup(
       @PathParam("tier") String tier,
       @PathParam("lookup") String lookup,
@@ -231,6 +267,14 @@ public class LookupCoordinatorResource
                        .build();
       }
 
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        final Access access = AuthorizationUtils
+            .authorizeResourceAction(req, new ResourceAction(new Resource(lookup, ResourceType.LOOKUP), Action.WRITE), authorizerMapper);
+        if (!access.isAllowed()) {
+          return Response.status(Response.Status.FORBIDDEN).entity(access.getMessage()).build();
+        }
+      }
+
       if (lookupCoordinatorManager.deleteLookup(tier, lookup, new AuditInfo(author, comment, req.getRemoteAddr()))) {
         return Response.status(Response.Status.ACCEPTED).build();
       } else {
@@ -246,6 +290,7 @@ public class LookupCoordinatorResource
   @POST
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
   @Path("/config/{tier}/{lookup}")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response createOrUpdateLookup(
       @PathParam("tier") String tier,
       @PathParam("lookup") String lookup,
@@ -267,6 +312,15 @@ public class LookupCoordinatorResource
                        .entity(ServletResourceUtils.sanitizeException(new IAE("`lookup` required")))
                        .build();
       }
+
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        final Access access = AuthorizationUtils
+            .authorizeResourceAction(req, new ResourceAction(new Resource(lookup, ResourceType.LOOKUP), Action.WRITE), authorizerMapper);
+        if (!access.isAllowed()) {
+          return Response.status(Response.Status.FORBIDDEN).entity(access.getMessage()).build();
+        }
+      }
+
       final boolean isSmile = SmileMediaTypes.APPLICATION_JACKSON_SMILE.equals(req.getContentType());
       final ObjectMapper mapper = isSmile ? smileMapper : jsonMapper;
       final LookupExtractorFactoryMapContainer lookupSpec;
@@ -296,9 +350,11 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
   @Path("/config/{tier}/{lookup}")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response getSpecificLookup(
       @PathParam("tier") String tier,
-      @PathParam("lookup") String lookup
+      @PathParam("lookup") String lookup,
+      @Context HttpServletRequest req
   )
   {
     try {
@@ -312,6 +368,15 @@ public class LookupCoordinatorResource
                        .entity(ServletResourceUtils.sanitizeException(new NullPointerException("`lookup` required")))
                        .build();
       }
+
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        final Access access = AuthorizationUtils
+            .authorizeResourceAction(req, new ResourceAction(new Resource(lookup, ResourceType.LOOKUP), Action.READ), authorizerMapper);
+        if (!access.isAllowed()) {
+          return Response.status(Response.Status.FORBIDDEN).entity(access.getMessage()).build();
+        }
+      }
+
       final LookupExtractorFactoryMapContainer map = lookupCoordinatorManager.getLookup(tier, lookup);
       if (map == null) {
         return Response.status(Response.Status.NOT_FOUND)
@@ -329,10 +394,11 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
   @Path("/config/{tier}")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response getSpecificTier(
       @PathParam("tier") String tier,
-      @DefaultValue("false") @QueryParam("detailed") boolean detailed
-
+      @DefaultValue("false") @QueryParam("detailed") boolean detailed,
+      @Context HttpServletRequest request
   )
   {
     try {
@@ -341,11 +407,14 @@ public class LookupCoordinatorResource
                        .entity(ServletResourceUtils.sanitizeException(new NullPointerException("`tier` required")))
                        .build();
       }
-      final Map<String, Map<String, LookupExtractorFactoryMapContainer>> map = lookupCoordinatorManager.getKnownLookups();
+      Map<String, Map<String, LookupExtractorFactoryMapContainer>> map = lookupCoordinatorManager.getKnownLookups();
       if (map == null) {
         return Response.status(Response.Status.NOT_FOUND)
                        .entity(ServletResourceUtils.sanitizeException(new RE("No lookups found")))
                        .build();
+      }
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        map = filterByLookupAccess(map, request, authorizerMapper, Action.READ);
       }
       final Map<String, LookupExtractorFactoryMapContainer> tierLookups = map.get(tier);
       if (tierLookups == null) {
@@ -368,8 +437,10 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/status")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response getAllLookupsStatus(
-      @QueryParam("detailed") boolean detailed
+      @QueryParam("detailed") boolean detailed,
+      @Context HttpServletRequest request
   )
   {
     try {
@@ -379,6 +450,9 @@ public class LookupCoordinatorResource
         return Response.status(Response.Status.NOT_FOUND)
                        .entity(ServletResourceUtils.jsonize("No lookups found"))
                        .build();
+      }
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        configuredLookups = filterByLookupAccess(configuredLookups, request, authorizerMapper, Action.READ);
       }
 
       Map<HostAndPort, LookupsState<LookupExtractorFactoryMapContainer>> lookupsStateOnNodes = lookupCoordinatorManager
@@ -417,9 +491,11 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/status/{tier}")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response getLookupStatusForTier(
       @PathParam("tier") String tier,
-      @QueryParam("detailed") boolean detailed
+      @QueryParam("detailed") boolean detailed,
+      @Context HttpServletRequest request
   )
   {
     try {
@@ -429,6 +505,9 @@ public class LookupCoordinatorResource
         return Response.status(Response.Status.NOT_FOUND)
                        .entity(ServletResourceUtils.jsonize("No lookups found"))
                        .build();
+      }
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        configuredLookups = filterByLookupAccess(configuredLookups, request, authorizerMapper, Action.READ);
       }
 
       Map<String, LookupExtractorFactoryMapContainer> tierLookups = configuredLookups.get(tier);
@@ -463,10 +542,12 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/status/{tier}/{lookup}")
+  @ResourceFilters(ConfigResourceFilter.class)
   public Response getSpecificLookupStatus(
       @PathParam("tier") String tier,
       @PathParam("lookup") String lookup,
-      @QueryParam("detailed") boolean detailed
+      @QueryParam("detailed") boolean detailed,
+      @Context HttpServletRequest request
   )
   {
     try {
@@ -476,6 +557,13 @@ public class LookupCoordinatorResource
         return Response.status(Response.Status.NOT_FOUND)
                        .entity(ServletResourceUtils.jsonize("No lookups found"))
                        .build();
+      }
+      if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+        final Access access = AuthorizationUtils
+            .authorizeResourceAction(request, new ResourceAction(new Resource(lookup, ResourceType.LOOKUP), Action.READ), authorizerMapper);
+        if (!access.isAllowed()) {
+          return Response.status(Response.Status.FORBIDDEN).entity(access.getMessage()).build();
+        }
       }
 
       Map<String, LookupExtractorFactoryMapContainer> tierLookups = configuredLookups.get(tier);
@@ -541,6 +629,7 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/nodeStatus")
+  @ResourceFilters({ ConfigResourceFilter.class, ServerServerResourceFilter.class })
   public Response getAllNodesStatus(
       @QueryParam("discover") boolean discover,
       @QueryParam("detailed") @Nullable Boolean detailed
@@ -584,6 +673,7 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/nodeStatus/{tier}")
+  @ResourceFilters({ ConfigResourceFilter.class, ServerServerResourceFilter.class })
   public Response getNodesStatusInTier(
       @PathParam("tier") String tier
   )
@@ -616,6 +706,7 @@ public class LookupCoordinatorResource
   @GET
   @Produces({MediaType.APPLICATION_JSON})
   @Path("/nodeStatus/{tier}/{hostAndPort}")
+  @ResourceFilters({ ConfigResourceFilter.class, ServerServerResourceFilter.class })
   public Response getSpecificNodeStatus(
       @PathParam("tier") String tier,
       @PathParam("hostAndPort") HostAndPort hostAndPort
@@ -753,4 +844,42 @@ public class LookupCoordinatorResource
       return Objects.hash(loaded, pendingNodes);
     }
   }
+
+  private Map<String, Map<String, LookupExtractorFactoryMapContainer>> filterByLookupAccess(
+      Map<String, Map<String, LookupExtractorFactoryMapContainer>> lookups,
+      HttpServletRequest request,
+      AuthorizerMapper authorizerMapper,
+      Action action
+  )
+  {
+    final Map<String, Map<String, LookupExtractorFactoryMapContainer>> filteredLookups = new HashMap<>(lookups);
+    lookups.keySet().forEach(tier -> filteredLookups.compute(tier, (tier1, lookupFactory) -> {
+          final Map<String, LookupExtractorFactoryMapContainer> filteredMap = new HashMap<>(lookupFactory);
+          lookupFactory.keySet().forEach(loookupId -> {
+            final Access access = AuthorizationUtils.authorizeAllResourceActions(
+                request,
+                Collections.singleton(new ResourceAction(new Resource(loookupId, ResourceType.LOOKUP), action)),
+                authorizerMapper
+            );
+            if (!access.isAllowed()) {
+              filteredMap.remove(loookupId);
+            }
+          });
+          return filteredMap;
+        }
+    ));
+    // We're filtering, so having access to none of the objects isn't an authorization failure (in terms of whether
+    // to send an error response or not.)
+    request.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    return filteredLookups;
+  }
+
+  private BiFunction<Map<String, Map<String, LookupExtractorFactoryMapContainer>>, Action, Iterable<ResourceAction>> TIER_LOOKUP_RA_GENERATOR = (input, action) -> input
+      .values().stream().flatMap(lookupMap -> lookupMap.keySet().stream()
+          .map(lookupId -> new ResourceAction(new Resource(lookupId, ResourceType.LOOKUP), action)))
+      .collect(Collectors.toList());
+
+  private BiFunction<Map<String, LookupExtractorFactoryMapContainer>, Action, Iterable<ResourceAction>> LOOKUP_RA_GENERATOR = (input, action) -> input
+      .keySet().stream().map(lookupId -> new ResourceAction(new Resource(lookupId, ResourceType.LOOKUP), action))
+      .collect(Collectors.toList());
 }

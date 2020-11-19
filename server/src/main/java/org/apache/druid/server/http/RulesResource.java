@@ -29,7 +29,11 @@ import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.metadata.MetadataRuleManager;
 import org.apache.druid.server.coordinator.rules.Rule;
 import org.apache.druid.server.http.security.RulesResourceFilter;
+import org.apache.druid.server.http.security.ServerServerResourceFilter;
 import org.apache.druid.server.http.security.StateResourceFilter;
+import org.apache.druid.server.security.AuthConfig;
+import org.apache.druid.server.security.AuthorizationUtils;
+import org.apache.druid.server.security.AuthorizerMapper;
 import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
@@ -45,7 +49,10 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -53,26 +60,42 @@ import java.util.List;
 public class RulesResource
 {
   public static final String RULES_ENDPOINT = "/druid/coordinator/v1/rules";
+  public static final String DEFAULT_RULE_KEY = "_default";
 
   private final MetadataRuleManager databaseRuleManager;
   private final AuditManager auditManager;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
   public RulesResource(
       MetadataRuleManager databaseRuleManager,
-      AuditManager auditManager
+      AuditManager auditManager,
+      AuthorizerMapper authorizerMapper
   )
   {
     this.databaseRuleManager = databaseRuleManager;
     this.auditManager = auditManager;
+    this.authorizerMapper = authorizerMapper;
   }
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   @ResourceFilters(StateResourceFilter.class)
-  public Response getRules()
+  public Response getRules(@Context HttpServletRequest request)
   {
-    return Response.ok(databaseRuleManager.getAllRules()).build();
+    final Map<String, List<Rule>> rules = databaseRuleManager.getAllRules();
+
+    if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2)) {
+      final Map<String, List<Rule>> filteredRules = new HashMap<>();
+      AuthorizationUtils.filterAuthorizedResources(
+          request,
+          rules.keySet(),
+          datasource -> Collections.singletonList(AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR.apply(datasource)),
+          authorizerMapper
+      ).forEach(datasource -> filteredRules.put(datasource, rules.get(datasource)));
+      return Response.ok(filteredRules).build();
+    }
+    return Response.ok(rules).build();
   }
 
   @GET
@@ -138,7 +161,7 @@ public class RulesResource
   @GET
   @Path("/history")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, ServerServerResourceFilter.class })
   public Response getDatasourceRuleHistory(
       @QueryParam("interval") final String interval,
       @QueryParam("count") final Integer count

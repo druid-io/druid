@@ -44,7 +44,9 @@ import org.apache.druid.indexer.TaskStatus;
 import org.apache.druid.indexer.TaskStatusPlus;
 import org.apache.druid.indexing.common.actions.TaskActionClient;
 import org.apache.druid.indexing.common.actions.TaskActionHolder;
+import org.apache.druid.indexing.common.task.IndexTask;
 import org.apache.druid.indexing.common.task.Task;
+import org.apache.druid.indexing.input.DruidInputSource;
 import org.apache.druid.indexing.overlord.IndexerMetadataStorageAdapter;
 import org.apache.druid.indexing.overlord.TaskMaster;
 import org.apache.druid.indexing.overlord.TaskQueue;
@@ -64,9 +66,13 @@ import org.apache.druid.metadata.EntryExistsException;
 import org.apache.druid.server.http.HttpMediaType;
 import org.apache.druid.server.http.security.ConfigResourceFilter;
 import org.apache.druid.server.http.security.DatasourceResourceFilter;
+import org.apache.druid.server.http.security.InternalInternalResourceFilter;
+import org.apache.druid.server.http.security.ServerServerResourceFilter;
+import org.apache.druid.server.http.security.ServerStatusResourceFilter;
 import org.apache.druid.server.http.security.StateResourceFilter;
 import org.apache.druid.server.security.Access;
 import org.apache.druid.server.security.Action;
+import org.apache.druid.server.security.AuthConfig;
 import org.apache.druid.server.security.AuthorizationUtils;
 import org.apache.druid.server.security.AuthorizerMapper;
 import org.apache.druid.server.security.ForbiddenException;
@@ -160,14 +166,25 @@ public class OverlordResource
   public Response taskPost(final Task task, @Context final HttpServletRequest req)
   {
     final String dataSource = task.getDataSource();
-    final ResourceAction resourceAction = new ResourceAction(
+    final List<ResourceAction> resourceActions = new ArrayList<>();
+
+    resourceActions.add(new ResourceAction(
         new Resource(dataSource, ResourceType.DATASOURCE),
         Action.WRITE
-    );
+    ));
 
-    Access authResult = AuthorizationUtils.authorizeResourceAction(
+    // if its a reindex task from druid, make sure the user has read permissions on the source druid datasource
+    if (authorizerMapper.getAuthVersion().equals(AuthConfig.AUTH_VERSION_2) && task instanceof IndexTask
+        && ((IndexTask) task).getIngestionSchema().getIOConfig().getInputSource() instanceof DruidInputSource) {
+      final String readFromDataSource = ((DruidInputSource) ((IndexTask) task).getIngestionSchema()
+          .getIOConfig()
+          .getInputSource()).getDataSource();
+      resourceActions.add(new ResourceAction(new Resource(readFromDataSource, ResourceType.DATASOURCE), Action.READ));
+    }
+
+    final Access authResult = AuthorizationUtils.authorizeAllResourceActions(
         req,
-        resourceAction,
+        resourceActions,
         authorizerMapper
     );
 
@@ -203,7 +220,7 @@ public class OverlordResource
 
   @GET
   @Path("/leader")
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, ServerStatusResourceFilter.class })
   @Produces(MediaType.APPLICATION_JSON)
   public Response getLeader()
   {
@@ -377,7 +394,7 @@ public class OverlordResource
   @POST
   @Path("/taskStatus")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, InternalInternalResourceFilter.class })
   public Response getMultipleTaskStatuses(Set<String> taskIds)
   {
     if (taskIds == null || taskIds.size() == 0) {
@@ -398,7 +415,7 @@ public class OverlordResource
   @GET
   @Path("/worker")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(ConfigResourceFilter.class)
+  @ResourceFilters({ ConfigResourceFilter.class, ServerServerResourceFilter.class })
   public Response getWorkerConfig()
   {
     if (workerConfigRef == null) {
@@ -412,7 +429,7 @@ public class OverlordResource
   @POST
   @Path("/worker")
   @Consumes(MediaType.APPLICATION_JSON)
-  @ResourceFilters(ConfigResourceFilter.class)
+  @ResourceFilters({ ConfigResourceFilter.class, ServerServerResourceFilter.class })
   public Response setWorkerConfig(
       final WorkerBehaviorConfig workerBehaviorConfig,
       @HeaderParam(AuditManager.X_DRUID_AUTHOR) @DefaultValue("") final String author,
@@ -437,7 +454,7 @@ public class OverlordResource
   @GET
   @Path("/worker/history")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(ConfigResourceFilter.class)
+  @ResourceFilters({ ConfigResourceFilter.class, ServerServerResourceFilter.class })
   public Response getWorkerConfigHistory(
       @QueryParam("interval") final String interval,
       @QueryParam("count") final Integer count
@@ -470,7 +487,7 @@ public class OverlordResource
   @POST
   @Path("/action")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, InternalInternalResourceFilter.class })
   public Response doAction(final TaskActionHolder holder)
   {
     return asLeaderWith(
@@ -711,7 +728,7 @@ public class OverlordResource
   @GET
   @Path("/workers")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, ServerServerResourceFilter.class })
   public Response getWorkers()
   {
     return asLeaderWith(
@@ -741,7 +758,7 @@ public class OverlordResource
   @POST
   @Path("/worker/{host}/enable")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, ServerServerResourceFilter.class })
   public Response enableWorker(@PathParam("host") final String host)
   {
     return changeWorkerStatus(host, WorkerTaskRunner.ActionType.ENABLE);
@@ -750,7 +767,7 @@ public class OverlordResource
   @POST
   @Path("/worker/{host}/disable")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, ServerServerResourceFilter.class })
   public Response disableWorker(@PathParam("host") final String host)
   {
     return changeWorkerStatus(host, WorkerTaskRunner.ActionType.DISABLE);
@@ -782,7 +799,7 @@ public class OverlordResource
   @GET
   @Path("/scaling")
   @Produces(MediaType.APPLICATION_JSON)
-  @ResourceFilters(StateResourceFilter.class)
+  @ResourceFilters({ StateResourceFilter.class, InternalInternalResourceFilter.class })
   public Response getScalingState()
   {
     // Don't use asLeaderWith, since we want to return 200 instead of 503 when missing an autoscaler.

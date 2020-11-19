@@ -551,7 +551,7 @@ public class QueryResourceTest
 
     EasyMock.replay(testServletRequest);
 
-    AuthorizerMapper authMapper = new AuthorizerMapper(null)
+    AuthorizerMapper authMapper = new AuthorizerMapper(null, null)
     {
       @Override
       public Authorizer getAuthorizer(String name)
@@ -708,7 +708,7 @@ public class QueryResourceTest
 
     EasyMock.replay(testServletRequest);
 
-    AuthorizerMapper authMapper = new AuthorizerMapper(null)
+    AuthorizerMapper authMapper = new AuthorizerMapper(null, null)
     {
       @Override
       public Authorizer getAuthorizer(String name)
@@ -838,7 +838,7 @@ public class QueryResourceTest
 
     EasyMock.replay(testServletRequest);
 
-    AuthorizerMapper authMapper = new AuthorizerMapper(null)
+    AuthorizerMapper authMapper = new AuthorizerMapper(null, null)
     {
       @Override
       public Authorizer getAuthorizer(String name)

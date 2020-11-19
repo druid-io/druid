@@ -44,9 +44,7 @@ import javax.ws.rs.core.PathSegment;
 public class RulesResourceFilter extends AbstractResourceFilter
 {
   @Inject
-  public RulesResourceFilter(
-      AuthorizerMapper authorizerMapper
-  )
+  public RulesResourceFilter(AuthorizerMapper authorizerMapper)
   {
     super(authorizerMapper);
   }

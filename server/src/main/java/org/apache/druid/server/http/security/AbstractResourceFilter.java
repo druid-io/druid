@@ -39,9 +39,7 @@ public abstract class AbstractResourceFilter implements ResourceFilter, Containe
   private AuthorizerMapper authorizerMapper;
 
   @Inject
-  public AbstractResourceFilter(
-      AuthorizerMapper authorizerMapper
-  )
+  public AbstractResourceFilter(AuthorizerMapper authorizerMapper)
   {
     this.authorizerMapper = authorizerMapper;
   }
@@ -71,6 +69,11 @@ public abstract class AbstractResourceFilter implements ResourceFilter, Containe
   public void setAuthorizerMapper(AuthorizerMapper authorizerMapper)
   {
     this.authorizerMapper = authorizerMapper;
+  }
+
+  public String getAuthVersion()
+  {
+    return authorizerMapper.getAuthVersion();
   }
 
   public AbstractResourceFilter setReq(HttpServletRequest req)

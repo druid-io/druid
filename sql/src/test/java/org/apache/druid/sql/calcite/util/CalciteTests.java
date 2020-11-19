@@ -165,7 +165,7 @@ public class CalciteTests
   public static final String LOOKUP_SCHEMA_NAME = "lookup";
 
   public static final String TEST_SUPERUSER_NAME = "testSuperuser";
-  public static final AuthorizerMapper TEST_AUTHORIZER_MAPPER = new AuthorizerMapper(null)
+  public static final AuthorizerMapper TEST_AUTHORIZER_MAPPER = new AuthorizerMapper(null, null)
   {
     @Override
     public Authorizer getAuthorizer(String name)
@@ -1026,7 +1026,8 @@ public class CalciteTests
         druidLeaderClient,
         druidLeaderClient,
         provider,
-        getJsonMapper()
+        getJsonMapper(),
+        new AuthConfig()
     );
   }
 

@@ -44,9 +44,7 @@ import javax.ws.rs.core.PathSegment;
 public class DatasourceResourceFilter extends AbstractResourceFilter
 {
   @Inject
-  public DatasourceResourceFilter(
-      AuthorizerMapper authorizerMapper
-  )
+  public DatasourceResourceFilter(AuthorizerMapper authorizerMapper)
   {
     super(authorizerMapper);
   }

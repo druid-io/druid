@@ -26,6 +26,11 @@ public class Resource
 {
   public static final Resource STATE_RESOURCE = new Resource("STATE", ResourceType.STATE);
 
+  public static final Resource INTERNAL_INTERNAL_RESOURCE = new Resource("INTERNAL", ResourceType.INTERNAL);
+  public static final Resource SERVER_SERVER_RESOURCE = new Resource("SERVER", ResourceType.SERVER);
+  public static final Resource SERVER_USER_RESOURCE = new Resource("USER", ResourceType.SERVER);
+  public static final Resource SERVER_STATUS_RESOURCE = new Resource("STATUS", ResourceType.SERVER);
+
   private final String name;
   private final ResourceType type;
 

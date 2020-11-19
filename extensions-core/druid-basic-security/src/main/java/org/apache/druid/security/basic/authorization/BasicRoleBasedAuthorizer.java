@@ -109,6 +109,14 @@ public class BasicRoleBasedAuthorizer implements Authorizer
     return new Access(false);
   }
 
+  @Override
+  public Access authorizeV2(AuthenticationResult authenticationResult, Resource resource, Action action)
+  {
+    // its same implementation as with v2 permissions for roles will be changed in the metadata store
+    // checking logic will remain the same
+    return this.authorize(authenticationResult, resource, action);
+  }
+
   private boolean permissionCheck(Resource resource, Action action, BasicAuthorizerPermission permission)
   {
     if (action != permission.getResourceAction().getAction()) {
@@ -121,7 +129,7 @@ public class BasicRoleBasedAuthorizer implements Authorizer
     }
 
     Pattern resourceNamePattern = permission.getResourceNamePattern();
-    Matcher resourceNameMatcher = resourceNamePattern.matcher(resource.getName());
+    Matcher resourceNameMatcher = resourceNamePattern.matcher(resource.getName().toString());
     return resourceNameMatcher.matches();
   }
 
