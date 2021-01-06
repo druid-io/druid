@@ -44,6 +44,7 @@ import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.granularity.Granularity;
 import org.apache.druid.java.util.common.parsers.ParseException;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.query.aggregation.CountAdjustmentHolder;
 import org.apache.druid.query.aggregation.PostAggregator;
 import org.apache.druid.query.dimension.DimensionSpec;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
@@ -77,6 +78,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -372,6 +374,12 @@ public abstract class IncrementalIndex<AggregatorType> extends AbstractIndex imp
     public Builder setMaxBytesInMemory(final long maxBytesInMemory)
     {
       return (Builder) super.setMaxBytesInMemory(maxBytesInMemory);
+    }
+
+    @Override
+    public Builder setAdjustmentHolder(CountAdjustmentHolder adjustmentHolder)
+    {
+      return (Builder) super.setAdjustmentHolder(adjustmentHolder);
     }
 
     public OnheapIncrementalIndex buildOnheap()
@@ -979,7 +987,7 @@ public abstract class IncrementalIndex<AggregatorType> extends AbstractIndex imp
             }
 
             AggregatorType[] aggs = getAggsForRow(rowOffset);
-            for (int i = 0; i < aggs.length; ++i) {
+            for (int i = 0; i < metrics.length; ++i) {
               theVals.put(metrics[i].getName(), getAggVal(aggs[i], rowOffset, i));
             }
 

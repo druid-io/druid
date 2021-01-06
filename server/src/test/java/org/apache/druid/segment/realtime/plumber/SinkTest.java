@@ -31,7 +31,10 @@ import org.apache.druid.java.util.common.DateTimes;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.java.util.common.granularity.Granularities;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.query.aggregation.CountAdjustmentHolder;
 import org.apache.druid.query.aggregation.CountAggregatorFactory;
+import org.apache.druid.query.aggregation.MaxIntermediateSizeAdjustStrategy;
+import org.apache.druid.query.aggregation.MetricAdjustmentHolder;
 import org.apache.druid.segment.indexing.DataSchema;
 import org.apache.druid.segment.indexing.RealtimeTuningConfig;
 import org.apache.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -44,12 +47,41 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
  */
 public class SinkTest extends InitializedNullHandlingTest
 {
+  private CountAdjustmentHolder createAdjustmentHolder(AggregatorFactory[] aggregators, long maxBytesInMemory, boolean adjustmentFlag)
+  {
+    if (maxBytesInMemory < 0 || adjustmentFlag == false) {
+      return null;
+    }
+    HashMap<String, MetricAdjustmentHolder> metricTypeAndHolderMap = new HashMap<>();
+    for (AggregatorFactory metric : aggregators) {
+      final MaxIntermediateSizeAdjustStrategy maxIntermediateSizeAdjustStrategy = metric
+          .getMaxIntermediateSizeAdjustStrategy(adjustmentFlag);
+      if (maxIntermediateSizeAdjustStrategy == null) {
+        continue;
+      }
+      final String tempMetricType = maxIntermediateSizeAdjustStrategy.getAdjustmentMetricType();
+      final MetricAdjustmentHolder metricAdjustmentHolder = metricTypeAndHolderMap.computeIfAbsent(
+          tempMetricType,
+          k -> new MetricAdjustmentHolder(maxIntermediateSizeAdjustStrategy)
+      );
+      if (metricAdjustmentHolder != null) {
+        metricAdjustmentHolder.selectStrategyByType(maxIntermediateSizeAdjustStrategy);
+      }
+    }
+    CountAdjustmentHolder adjustmentHolder = null;
+    if (metricTypeAndHolderMap.size() > 0) {
+      adjustmentHolder = new CountAdjustmentHolder(metricTypeAndHolderMap);
+    }
+    return adjustmentHolder;
+  }
+
   @Test
   public void testSwap() throws Exception
   {
@@ -68,6 +100,7 @@ public class SinkTest extends InitializedNullHandlingTest
         null,
         100,
         null,
+        true,
         new Period("P1Y"),
         null,
         null,
@@ -86,6 +119,7 @@ public class SinkTest extends InitializedNullHandlingTest
         null,
         null
     );
+    final CountAdjustmentHolder adjustmentHolder = createAdjustmentHolder(schema.getAggregators(), tuningConfig.getMaxBytesInMemory(), tuningConfig.getMaxBytesInMemory() >= 0);
     final Sink sink = new Sink(
         interval,
         schema,
@@ -94,6 +128,7 @@ public class SinkTest extends InitializedNullHandlingTest
         tuningConfig.getAppendableIndexSpec(),
         tuningConfig.getMaxRowsInMemory(),
         tuningConfig.getMaxBytesInMemoryOrDefault(),
+        adjustmentHolder,
         tuningConfig.getDedupColumn()
     );
 
@@ -224,6 +259,7 @@ public class SinkTest extends InitializedNullHandlingTest
         null,
         100,
         null,
+        true,
         new Period("P1Y"),
         null,
         null,
@@ -242,6 +278,7 @@ public class SinkTest extends InitializedNullHandlingTest
         null,
         "dedupColumn"
     );
+    final CountAdjustmentHolder adjustmentHolder = createAdjustmentHolder(schema.getAggregators(), tuningConfig.getMaxBytesInMemory(), tuningConfig.getMaxBytesInMemory() >= 0);
     final Sink sink = new Sink(
         interval,
         schema,
@@ -250,6 +287,7 @@ public class SinkTest extends InitializedNullHandlingTest
         tuningConfig.getAppendableIndexSpec(),
         tuningConfig.getMaxRowsInMemory(),
         tuningConfig.getMaxBytesInMemoryOrDefault(),
+        adjustmentHolder,
         tuningConfig.getDedupColumn()
     );
 

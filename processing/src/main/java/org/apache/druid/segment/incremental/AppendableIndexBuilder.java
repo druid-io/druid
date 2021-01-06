@@ -22,6 +22,7 @@ package org.apache.druid.segment.incremental;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.query.aggregation.AggregatorFactory;
+import org.apache.druid.query.aggregation.CountAdjustmentHolder;
 
 import javax.annotation.Nullable;
 
@@ -34,6 +35,8 @@ public abstract class AppendableIndexBuilder
   protected boolean sortFacts = true;
   protected int maxRowCount = 0;
   protected long maxBytesInMemory = 0;
+  @Nullable
+  protected CountAdjustmentHolder adjustmentHolder = null;
 
   protected final Logger log = new Logger(this.getClass().getName());
 
@@ -103,6 +106,12 @@ public abstract class AppendableIndexBuilder
   public AppendableIndexBuilder setMaxBytesInMemory(final long maxBytesInMemory)
   {
     this.maxBytesInMemory = maxBytesInMemory;
+    return this;
+  }
+
+  public AppendableIndexBuilder setAdjustmentHolder(final CountAdjustmentHolder adjustmentHolder)
+  {
+    this.adjustmentHolder = adjustmentHolder;
     return this;
   }
 

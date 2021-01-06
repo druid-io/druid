@@ -31,6 +31,7 @@ import org.apache.druid.segment.column.ValueType;
 import org.apache.druid.segment.vector.VectorColumnSelectorFactory;
 
 import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -264,6 +265,19 @@ public abstract class AggregatorFactory implements Cacheable
   public int getMaxIntermediateSizeWithNulls()
   {
     return getMaxIntermediateSize();
+  }
+
+  /**
+   * The size of the occupancy of a particular aggregate type
+   * (dynamic capacity enlargement is based on the number of aggregates) evaluates the tuning strategy,
+   * with the default null value indicating that no tuning is required
+   *
+   * @return
+   */
+  @Nullable
+  public MaxIntermediateSizeAdjustStrategy getMaxIntermediateSizeAdjustStrategy(boolean adjustBytesInMemoryFlag)
+  {
+    return null;
   }
 
   /**

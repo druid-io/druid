@@ -239,6 +239,12 @@ public class HadoopTuningConfig implements TuningConfig
     return maxBytesInMemory;
   }
 
+  @Override
+  public boolean isAdjustmentBytesInMemoryFlag()
+  {
+    return false;
+  }
+
   @JsonProperty
   public boolean isLeaveIntermediate()
   {
