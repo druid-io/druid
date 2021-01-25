@@ -36,20 +36,15 @@ public class HttpInputSourceTest
   @Test
   public void testSerde() throws IOException
   {
-    HttpInputSourceConfig httpInputSourceConfig = new HttpInputSourceConfig(
-        null,
-        null
-    );
     final ObjectMapper mapper = new ObjectMapper();
     mapper.setInjectableValues(new InjectableValues.Std().addValue(
-        HttpInputSourceConfig.class,
-        httpInputSourceConfig
+        InputSourceSecurityConfig.class,
+        InputSourceSecurityConfig.ALLOW_ALL
     ));
     final HttpInputSource source = new HttpInputSource(
         ImmutableList.of(URI.create("http://test.com/http-test")),
         "myName",
-        new DefaultPasswordProvider("myPassword"),
-        httpInputSourceConfig
+        new DefaultPasswordProvider("myPassword")
     );
     final byte[] json = mapper.writeValueAsBytes(source);
     final HttpInputSource fromJson = (HttpInputSource) mapper.readValue(json, InputSource.class);
@@ -62,8 +57,12 @@ public class HttpInputSourceTest
     new HttpInputSource(
         ImmutableList.of(URI.create("http://deny.com/http-test")),
         "myName",
-        new DefaultPasswordProvider("myPassword"),
-        new HttpInputSourceConfig(null, Collections.singletonList("deny.com"))
+        new DefaultPasswordProvider("myPassword")
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(
+            null,
+            Collections.singletonList(URI.create("http://deny.com"))
+        )
     );
   }
 
@@ -73,8 +72,12 @@ public class HttpInputSourceTest
     new HttpInputSource(
         ImmutableList.of(URI.create("http://allow.com/http-test")),
         "myName",
-        new DefaultPasswordProvider("myPassword"),
-        new HttpInputSourceConfig(null, Collections.singletonList("deny.com"))
+        new DefaultPasswordProvider("myPassword")
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(
+            null,
+            Collections.singletonList(URI.create("http://deny.com"))
+        )
     );
   }
 
@@ -84,8 +87,9 @@ public class HttpInputSourceTest
     new HttpInputSource(
         ImmutableList.of(URI.create("http://deny.com/http-test")),
         "myName",
-        new DefaultPasswordProvider("myPassword"),
-        new HttpInputSourceConfig(Collections.singletonList("allow.com"), null)
+        new DefaultPasswordProvider("myPassword")
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(Collections.singletonList(URI.create("http://allow.com")), null)
     );
   }
 
@@ -95,8 +99,9 @@ public class HttpInputSourceTest
     new HttpInputSource(
         ImmutableList.of(URI.create("http://allow.com/http-test")),
         "myName",
-        new DefaultPasswordProvider("myPassword"),
-        new HttpInputSourceConfig(Collections.singletonList("allow.com"), null)
+        new DefaultPasswordProvider("myPassword")
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(Collections.singletonList(URI.create("http://allow.com")), null)
     );
   }
 
@@ -106,14 +111,9 @@ public class HttpInputSourceTest
     new HttpInputSource(
         ImmutableList.of(URI.create("http://allow.com/http-test")),
         "myName",
-        new DefaultPasswordProvider("myPassword"),
-        new HttpInputSourceConfig(Collections.emptyList(), null)
+        new DefaultPasswordProvider("myPassword")
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(Collections.emptyList(), null)
     );
-  }
-
-  @Test(expected = IllegalArgumentException.class)
-  public void testCannotSetBothAllowAndDenyList()
-  {
-    new HttpInputSourceConfig(Collections.singletonList("allow.com"), Collections.singletonList("deny.com"));
   }
 }

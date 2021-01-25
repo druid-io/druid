@@ -38,6 +38,7 @@ import org.apache.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.DoubleDimensionSchema;
 import org.apache.druid.data.input.impl.FloatDimensionSchema;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.LongDimensionSchema;
 import org.apache.druid.data.input.impl.StringDimensionSchema;
 import org.apache.druid.data.input.impl.TimestampSpec;
@@ -422,7 +423,8 @@ public class CompactionTask extends AbstractBatchIndexTask
         getGroupId(),
         getTaskResource(),
         ingestionSpec,
-        createContextForSubtask()
+        createContextForSubtask(),
+        InputSourceSecurityConfig.ALLOW_ALL
     );
   }
 

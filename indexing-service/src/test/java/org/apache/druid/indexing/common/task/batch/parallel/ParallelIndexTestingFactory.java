@@ -217,7 +217,12 @@ class ParallelIndexTestingFactory
       DataSchema dataSchema
   )
   {
-    ParallelIndexIOConfig ioConfig = new ParallelIndexIOConfig(null, inputSource, inputFormat, false);
+    ParallelIndexIOConfig ioConfig = new ParallelIndexIOConfig(
+        null,
+        inputSource,
+        inputFormat,
+        false
+    );
 
     return new ParallelIndexIngestionSpec(dataSchema, ioConfig, tuningConfig);
   }

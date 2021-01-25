@@ -44,6 +44,7 @@ import org.apache.druid.data.input.InputSourceReader;
 import org.apache.druid.data.input.MapBasedInputRow;
 import org.apache.druid.data.input.impl.DimensionsSpec;
 import org.apache.druid.data.input.impl.InputRowParser;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.MapInputRowParser;
 import org.apache.druid.data.input.impl.NoopInputFormat;
 import org.apache.druid.data.input.impl.TimeAndDimsParseSpec;
@@ -329,6 +330,12 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
     {
       return false;
     }
+
+    @Override
+    public void validateAllowDenyPrefixList(InputSourceSecurityConfig securityConfig)
+    {
+      // No URI to validate
+    }
   }
 
   private static class MockInputSource extends AbstractInputSource
@@ -364,6 +371,12 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
     {
       return false;
     }
+
+    @Override
+    public void validateAllowDenyPrefixList(InputSourceSecurityConfig securityConfig)
+    {
+      // No URI to validate
+    }
   }
 
   private static class MockFirehoseFactory implements FirehoseFactory
@@ -394,6 +407,12 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
 
         }
       };
+    }
+
+    @Override
+    public void validateAllowDenyPrefixList(InputSourceSecurityConfig securityConfig)
+    {
+      // Nothing to validate for Mock Firehose
     }
   }
 
@@ -768,7 +787,8 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
                 null
             )
         ),
-        null
+        null,
+        InputSourceSecurityConfig.ALLOW_ALL
     );
 
     final Optional<TaskStatus> preRunTaskStatus = tsqa.getStatus(indexTask.getId());
@@ -850,7 +870,8 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
                 null
             )
         ),
-        null
+        null,
+        InputSourceSecurityConfig.ALLOW_ALL
     );
 
     final TaskStatus status = runTask(indexTask);
@@ -1277,7 +1298,8 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
                 null
             )
         ),
-        null
+        null,
+        InputSourceSecurityConfig.ALLOW_ALL
     );
 
     final long startTime = System.currentTimeMillis();
@@ -1386,7 +1408,8 @@ public class TaskLifecycleTest extends InitializedNullHandlingTest
                 null
             )
         ),
-        null
+        null,
+        InputSourceSecurityConfig.ALLOW_ALL
     );
 
     final Optional<TaskStatus> preRunTaskStatus = tsqa.getStatus(indexTask.getId());

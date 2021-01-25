@@ -34,6 +34,7 @@ import org.apache.druid.data.input.InputSourceReader;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.SplitHintSpec;
 import org.apache.druid.data.input.impl.InputEntityIteratingReader;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.guice.Hdfs;
 import org.apache.druid.java.util.common.IAE;
@@ -214,7 +215,20 @@ public class HdfsInputSource extends AbstractInputSource implements SplittableIn
   private void cachePathsIfNeeded() throws IOException
   {
     if (cachedPaths == null) {
-      cachedPaths = ImmutableList.copyOf(Preconditions.checkNotNull(getPaths(inputPaths, configuration), "paths"));
+      Collection<Path> paths = Preconditions.checkNotNull(getPaths(inputPaths, configuration), "paths");
+      cachedPaths = ImmutableList.copyOf(paths);
+    }
+  }
+
+  @Override
+  public void validateAllowDenyPrefixList(InputSourceSecurityConfig securityConfig)
+  {
+    try {
+      Collection<Path> paths = Preconditions.checkNotNull(getPaths(inputPaths, configuration), "paths");
+      securityConfig.validateURIAccess(paths.stream().map(path -> path.toUri()).collect(Collectors.toList()));
+    }
+    catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 

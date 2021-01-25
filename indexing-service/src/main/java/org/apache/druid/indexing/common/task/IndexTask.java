@@ -19,6 +19,7 @@
 
 package org.apache.druid.indexing.common.task;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -40,6 +41,7 @@ import org.apache.druid.data.input.InputRow;
 import org.apache.druid.data.input.InputSource;
 import org.apache.druid.data.input.Rows;
 import org.apache.druid.data.input.impl.InputRowParser;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.hll.HyperLogLogCollector;
 import org.apache.druid.indexer.Checks;
 import org.apache.druid.indexer.IngestionState;
@@ -156,6 +158,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
 
   private final IndexIngestionSpec ingestionSchema;
 
+  private final InputSourceSecurityConfig securityConfig;
+
   private IngestionState ingestionState;
 
   @MonotonicNonNull
@@ -176,13 +180,13 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
   @Nullable
   private String errorMsg;
 
-
   @JsonCreator
   public IndexTask(
       @JsonProperty("id") final String id,
       @JsonProperty("resource") final TaskResource taskResource,
       @JsonProperty("spec") final IndexIngestionSpec ingestionSchema,
-      @JsonProperty("context") final Map<String, Object> context
+      @JsonProperty("context") final Map<String, Object> context,
+      @JacksonInject InputSourceSecurityConfig securityConfig
   )
   {
     this(
@@ -191,7 +195,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         taskResource,
         ingestionSchema.dataSchema.getDataSource(),
         ingestionSchema,
-        context
+        context,
+        securityConfig
     );
   }
 
@@ -201,7 +206,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       TaskResource resource,
       String dataSource,
       IndexIngestionSpec ingestionSchema,
-      Map<String, Object> context
+      Map<String, Object> context,
+      InputSourceSecurityConfig securityConfig
   )
   {
     super(
@@ -213,6 +219,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     );
     this.ingestionSchema = ingestionSchema;
     this.ingestionState = IngestionState.NOT_STARTED;
+    this.securityConfig = securityConfig;
   }
 
   @Override
@@ -231,6 +238,10 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         throw new UOE("partitionsSpec[%s] is not supported", tuningConfig.getPartitionsSpec().getClass().getName());
       }
     }
+    InputSource inputSource = getIngestionSchema().getIOConfig().getNonNullInputSource(
+        getIngestionSchema().getDataSchema().getParser()
+    );
+    inputSource.validateAllowDenyPrefixList(securityConfig);
     return determineLockGranularityAndTryLock(taskActionClient, ingestionSchema.dataSchema.getGranularitySpec());
   }
 
@@ -1053,7 +1064,10 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
 
     // old constructor for backward compatibility
     @Deprecated
-    public IndexIOConfig(FirehoseFactory firehoseFactory, @Nullable Boolean appendToExisting)
+    public IndexIOConfig(
+        FirehoseFactory firehoseFactory,
+        @Nullable Boolean appendToExisting
+    )
     {
       this(firehoseFactory, null, null, appendToExisting);
     }
@@ -1090,10 +1104,11 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     public InputSource getNonNullInputSource(@Nullable InputRowParser inputRowParser)
     {
       if (inputSource == null) {
-        return new FirehoseFactoryToInputSourceAdaptor(
+        InputSource inputSource = new FirehoseFactoryToInputSourceAdaptor(
             (FiniteFirehoseFactory) firehoseFactory,
             inputRowParser
         );
+        return inputSource;
       } else {
         return inputSource;
       }

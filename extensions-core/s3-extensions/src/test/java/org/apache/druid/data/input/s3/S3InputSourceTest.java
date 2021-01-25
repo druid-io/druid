@@ -48,6 +48,7 @@ import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
 import org.apache.druid.data.input.impl.CsvInputFormat;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.initialization.DruidModule;
@@ -505,6 +506,7 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
         null,
         null
     );
+    inputSource.validateAllowDenyPrefixList(InputSourceSecurityConfig.ALLOW_ALL);
 
     InputRowSchema someSchema = new InputRowSchema(
         new TimestampSpec("time", "auto", null),
@@ -549,6 +551,7 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
         null,
         null
     );
+    inputSource.validateAllowDenyPrefixList(InputSourceSecurityConfig.ALLOW_ALL);
 
     InputRowSchema someSchema = new InputRowSchema(
         new TimestampSpec("time", "auto", null),
@@ -572,6 +575,76 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
     }
 
     EasyMock.verify(S3_CLIENT);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyAll()
+  {
+    new S3InputSource(
+        SERVICE,
+        SERVER_SIDE_ENCRYPTING_AMAZON_S3_BUILDER,
+        INPUT_DATA_CONFIG,
+        null,
+        ImmutableList.of(PREFIXES.get(0), EXPECTED_COMPRESSED_URIS.get(1)),
+        null,
+        null
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.emptyList(), null));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyPath()
+  {
+    new S3InputSource(
+        SERVICE,
+        SERVER_SIDE_ENCRYPTING_AMAZON_S3_BUILDER,
+        INPUT_DATA_CONFIG,
+        null,
+        ImmutableList.of(URI.create("s3://deny-bucket/path")),
+        null,
+        null
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(null, Collections.singletonList(URI.create("s3://deny-bucket"))));
+  }
+
+  @Test
+  public void testAllowSingleBucketPathMatching()
+  {
+    new S3InputSource(
+        SERVICE,
+        SERVER_SIDE_ENCRYPTING_AMAZON_S3_BUILDER,
+        INPUT_DATA_CONFIG,
+        null,
+        ImmutableList.of(URI.create("s3://allow-bucket/allow-path")),
+        null,
+        null
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.singletonList(URI.create("s3://allow-bucket/allow-path")), null));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testAllowSingleBucketPathNotMatching()
+  {
+    new S3InputSource(
+        SERVICE,
+        SERVER_SIDE_ENCRYPTING_AMAZON_S3_BUILDER,
+        INPUT_DATA_CONFIG,
+        null,
+        ImmutableList.of(URI.create("s3://allow-bucket/")),
+        null,
+        null
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.singletonList(URI.create("s3://allow-bucket/allow-path")), null));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testAllowSingleBucketPathDifferentBucket()
+  {
+    new S3InputSource(
+        SERVICE,
+        SERVER_SIDE_ENCRYPTING_AMAZON_S3_BUILDER,
+        INPUT_DATA_CONFIG,
+        null,
+        ImmutableList.of(URI.create("s3://deny-bucket/")),
+        null,
+        null
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.singletonList(URI.create("s3://allow-bucket/allow-path")), null));
   }
 
   private static void expectListObjects(URI prefix, List<URI> uris, byte[] content)
@@ -688,6 +761,7 @@ public class S3InputSourceTest extends InitializedNullHandlingTest
     @Override
     public void configure(Binder binder)
     {
+      binder.bind(InputSourceSecurityConfig.class).toInstance(InputSourceSecurityConfig.ALLOW_ALL);
     }
 
     @Provides

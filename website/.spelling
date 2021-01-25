@@ -1614,6 +1614,7 @@ GiB
 8u60
 Autoscaler
 AvaticaConnectionBalancer
+cloudfiles
 EventReceiverFirehose
 File.getFreeSpace
 File.getTotalSpace
@@ -1668,6 +1669,7 @@ addr
 affinityConfig
 allowAll
 allowList
+allowPrefixList
 ANDed
 array_mod
 autoscale
@@ -1682,6 +1684,7 @@ dataSourceName
 datetime
 defaultHistory
 denyList
+denyPrefixList
 doubleMax
 doubleMin
 doubleSum

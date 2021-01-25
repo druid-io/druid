@@ -98,6 +98,7 @@ abstract class InputSourceSplitParallelIndexTaskRunner<T extends Task, R extends
             inputSource,
             ingestionSchema.getIOConfig().getInputFormat(),
             ingestionSchema.getIOConfig().isAppendToExisting()
+            // Security is already checked in baseInputSource
         ),
         ingestionSchema.getTuningConfig()
     );

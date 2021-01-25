@@ -1360,8 +1360,14 @@ You can optionally configure following additional configs to restrict druid inge
  
 |Property|Possible Values|Description|Default|
 |--------|---------------|-----------|-------|
-|`druid.ingestion.http.allowListDomains`|List of domains|Allowed domains from which ingestion will be allowed. Only one of allowList or denyList can be set.|empty list|
-|`druid.ingestion.http.denyListDomains`|List of domains|Blacklisted domains from which ingestion will NOT be allowed. Only one of allowList or denyList can be set. |empty list|
+|`druid.ingestion.uri.allowPrefixList`|List of URIs|Allowed uris from which ingestion will be allowed. Only one of allowPrefixList or denyPrefixList can be set.|empty list|
+|`druid.ingestion.uri.denyPrefixList`|List of URIs|Blacklisted uris from which ingestion will NOT be allowed. Only one of allowPrefixList or denyPrefixList can be set. |empty list|
+
+`allowPrefixList` and `denyPrefixList` only apply to following ingestion sources - local disk, http, s3, google compute storage, azure, cloudfiles.  
+
+Using `allowPrefixList` offers more higher security than `denyPrefixList`.
+Prefix matching works by matching prefix of the URI instead of exact path boundaries.
+e.g.  `http://example.com/f` will match `http://example.com/foo` and `http://example.com/f/b` both.
 
 
 #### Query Configurations

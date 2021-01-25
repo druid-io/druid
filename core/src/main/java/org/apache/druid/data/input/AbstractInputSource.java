@@ -62,4 +62,5 @@ public abstract class AbstractInputSource implements InputSource
   {
     throw new UnsupportedOperationException("Implement this method properly if needsFormat() = false");
   }
+
 }

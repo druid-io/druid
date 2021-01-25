@@ -39,6 +39,7 @@ import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
 import org.apache.druid.data.input.impl.CsvInputFormat;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.JsonInputFormat;
 import org.apache.druid.data.input.impl.TimestampSpec;
 import org.apache.druid.initialization.DruidModule;
@@ -222,6 +223,7 @@ public class GoogleCloudStorageInputSourceTest extends InitializedNullHandlingTe
         PREFIXES,
         null
     );
+    inputSource.validateAllowDenyPrefixList(InputSourceSecurityConfig.ALLOW_ALL);
 
     InputRowSchema someSchema = new InputRowSchema(
         new TimestampSpec("time", "auto", null),
@@ -265,6 +267,7 @@ public class GoogleCloudStorageInputSourceTest extends InitializedNullHandlingTe
         PREFIXES,
         null
     );
+    inputSource.validateAllowDenyPrefixList(InputSourceSecurityConfig.ALLOW_ALL);
 
     InputRowSchema someSchema = new InputRowSchema(
         new TimestampSpec("time", "auto", null),
@@ -361,7 +364,7 @@ public class GoogleCloudStorageInputSourceTest extends InitializedNullHandlingTe
     @Override
     public void configure(Binder binder)
     {
-
+      binder.bind(InputSourceSecurityConfig.class).toInstance(InputSourceSecurityConfig.ALLOW_ALL);
     }
 
     @Provides

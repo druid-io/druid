@@ -35,6 +35,7 @@ import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.SplitHintSpec;
 import org.apache.druid.data.input.impl.ByteEntity;
 import org.apache.druid.data.input.impl.InputRowParser;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.StringInputRowParser;
 import org.apache.druid.indexing.overlord.sampler.InputSourceSampler;
 import org.apache.druid.indexing.overlord.sampler.SamplerConfig;
@@ -144,6 +145,12 @@ public abstract class SeekableStreamSamplerSpec<PartitionIdType, SequenceOffsetT
     public FiniteFirehoseFactory withSplit(InputSplit split)
     {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void validateAllowDenyPrefixList(InputSourceSecurityConfig securityConfig)
+    {
+      // No URI to validate
     }
   }
 

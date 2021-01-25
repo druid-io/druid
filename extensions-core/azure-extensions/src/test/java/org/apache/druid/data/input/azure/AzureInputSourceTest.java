@@ -24,6 +24,7 @@ import nl.jqno.equalsverifier.EqualsVerifier;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.MaxSizeSplitHintSpec;
 import org.apache.druid.data.input.impl.CloudObjectLocation;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.storage.azure.AzureCloudBlobHolderToCloudObjectLocationConverter;
@@ -40,6 +41,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -212,6 +214,62 @@ public class AzureInputSourceTest extends EasyMockSupport
 
     String actualToString = azureInputSource.toString();
     Assert.assertEquals("AzureInputSource{uris=[], prefixes=[azure://container/blob], objects=[]}", actualToString);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyAll()
+  {
+    new AzureInputSource(
+        storage,
+        entityFactory,
+        azureCloudBlobIterableFactory,
+        azureCloudBlobToLocationConverter,
+        inputDataConfig,
+        EMPTY_URIS,
+        Collections.singletonList(URI.create("azure://container/blob")),
+        EMPTY_OBJECTS
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(Collections.emptyList(), null)
+    );
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyURI()
+  {
+    new AzureInputSource(
+        storage,
+        entityFactory,
+        azureCloudBlobIterableFactory,
+        azureCloudBlobToLocationConverter,
+        inputDataConfig,
+        Collections.singletonList(URI.create("azure://container/blob")),
+        EMPTY_URIS,
+        EMPTY_OBJECTS
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(
+            null,
+            Collections.singletonList(URI.create(
+                "azure://container/blob"))
+        )
+    );
+  }
+
+  @Test
+  public void testAllowURI()
+  {
+    new AzureInputSource(
+        storage,
+        entityFactory,
+        azureCloudBlobIterableFactory,
+        azureCloudBlobToLocationConverter,
+        inputDataConfig,
+        Collections.singletonList(URI.create("azure://container/blob")),
+        EMPTY_URIS,
+        EMPTY_OBJECTS
+    ).validateAllowDenyPrefixList(
+        new InputSourceSecurityConfig(
+            Collections.singletonList(URI.create("azure://container/blob")), null)
+    );
   }
 
   @Test

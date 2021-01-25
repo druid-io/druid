@@ -216,4 +216,11 @@ public class LocalInputSource extends AbstractInputSource implements SplittableI
   {
     return Objects.hash(baseDir, filter, files);
   }
+
+  @Override
+  public void validateAllowDenyPrefixList(InputSourceSecurityConfig securityConfig)
+  {
+    securityConfig.validateFileAccess(baseDir);
+    securityConfig.validateFileAccess(files);
+  }
 }

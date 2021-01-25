@@ -24,6 +24,7 @@ import org.apache.druid.data.input.AbstractInputSource;
 import org.apache.druid.data.input.InputFormat;
 import org.apache.druid.data.input.InputSplit;
 import org.apache.druid.data.input.SplitHintSpec;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.NoopInputFormat;
 import org.apache.druid.data.input.impl.SplittableInputSource;
 import org.apache.druid.indexer.TaskState;
@@ -255,6 +256,12 @@ public class ParallelIndexSupervisorTaskKillTest extends AbstractParallelIndexSu
     public boolean needsFormat()
     {
       return false;
+    }
+
+    @Override
+    public void validateAllowDenyPrefixList(InputSourceSecurityConfig securityConfig)
+    {
+      // No URI to validate
     }
   }
 

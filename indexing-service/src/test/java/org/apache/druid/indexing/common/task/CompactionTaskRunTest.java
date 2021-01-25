@@ -30,6 +30,7 @@ import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.client.indexing.NoopIndexingServiceClient;
 import org.apache.druid.data.input.impl.CSVParseSpec;
 import org.apache.druid.data.input.impl.DimensionsSpec;
+import org.apache.druid.data.input.impl.InputSourceSecurityConfig;
 import org.apache.druid.data.input.impl.ParseSpec;
 import org.apache.druid.data.input.impl.StringInputRowParser;
 import org.apache.druid.data.input.impl.TimestampSpec;
@@ -451,7 +452,8 @@ public class CompactionTaskRunTest extends IngestionTestBase
             IndexTaskTest.createTuningConfig(2, 2, null, 2L, null, false, true),
             false
         ),
-        null
+        null,
+        InputSourceSecurityConfig.ALLOW_ALL
     );
 
     final Future<Pair<TaskStatus, List<DataSegment>>> compactionFuture = exec.submit(
@@ -762,7 +764,8 @@ public class CompactionTaskRunTest extends IngestionTestBase
             ),
             IndexTaskTest.createTuningConfig(5000000, null, null, Long.MAX_VALUE, null, false, true)
         ),
-        null
+        null,
+        InputSourceSecurityConfig.ALLOW_ALL
     );
 
     // This is a regular index so we need to explicitly add this context to store the CompactionState
@@ -833,7 +836,8 @@ public class CompactionTaskRunTest extends IngestionTestBase
             IndexTaskTest.createTuningConfig(2, 2, null, 2L, null, false, true),
             appendToExisting
         ),
-        null
+        null,
+        InputSourceSecurityConfig.ALLOW_ALL
     );
 
     return runTask(indexTask, readyLatchToCountDown, latchToAwaitBeforeRun);

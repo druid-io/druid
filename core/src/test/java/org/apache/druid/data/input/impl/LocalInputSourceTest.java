@@ -19,6 +19,7 @@
 
 package org.apache.druid.data.input.impl;
 
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -39,6 +40,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -54,7 +56,14 @@ public class LocalInputSourceTest
   public void testSerde() throws IOException
   {
     final ObjectMapper mapper = new ObjectMapper();
-    final LocalInputSource source = new LocalInputSource(new File("myFile").getAbsoluteFile(), "myFilter");
+    mapper.setInjectableValues(new InjectableValues.Std().addValue(
+        InputSourceSecurityConfig.class,
+        InputSourceSecurityConfig.ALLOW_ALL
+    ));
+    final LocalInputSource source = new LocalInputSource(
+        new File("myFile").getAbsoluteFile(),
+        "myFilter"
+    );
     final byte[] json = mapper.writeValueAsBytes(source);
     final LocalInputSource fromJson = (LocalInputSource) mapper.readValue(json, InputSource.class);
     Assert.assertEquals(source, fromJson);
@@ -63,7 +72,10 @@ public class LocalInputSourceTest
   @Test
   public void testEquals()
   {
-    EqualsVerifier.forClass(LocalInputSource.class).usingGetClass().withNonnullFields("files").verify();
+    EqualsVerifier.forClass(LocalInputSource.class)
+                  .usingGetClass()
+                  .withNonnullFields("files")
+                  .verify();
   }
 
   @Test
@@ -119,7 +131,11 @@ public class LocalInputSourceTest
     Set<File> expectedFiles = new HashSet<>(filesInBaseDir);
     expectedFiles.addAll(files);
     File.createTempFile("local-input-source", ".filtered", baseDir);
-    Iterator<File> fileIterator = new LocalInputSource(baseDir, "*.data", files).getFileIterator();
+    Iterator<File> fileIterator = new LocalInputSource(
+        baseDir,
+        "*.data",
+        files
+    ).getFileIterator();
     Set<File> actualFiles = Streams.sequentialStreamFrom(fileIterator).collect(Collectors.toSet());
     Assert.assertEquals(expectedFiles, actualFiles);
   }
@@ -136,7 +152,11 @@ public class LocalInputSourceTest
       }
       filesInBaseDir.add(file);
     }
-    Iterator<File> fileIterator = new LocalInputSource(baseDir, "*", null).getFileIterator();
+    Iterator<File> fileIterator = new LocalInputSource(
+        baseDir,
+        "*",
+        null
+    ).getFileIterator();
     Set<File> actualFiles = Streams.sequentialStreamFrom(fileIterator).collect(Collectors.toSet());
     Assert.assertEquals(filesInBaseDir, actualFiles);
   }
@@ -153,7 +173,11 @@ public class LocalInputSourceTest
       }
       filesInBaseDir.add(file);
     }
-    Iterator<File> fileIterator = new LocalInputSource(null, null, filesInBaseDir).getFileIterator();
+    Iterator<File> fileIterator = new LocalInputSource(
+        null,
+        null,
+        filesInBaseDir
+    ).getFileIterator();
     Set<File> actualFiles = Streams.sequentialStreamFrom(fileIterator).collect(Collectors.toSet());
     Assert.assertEquals(filesInBaseDir, actualFiles);
   }
@@ -178,5 +202,91 @@ public class LocalInputSourceTest
       files.add(file);
     }
     return files;
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyDirectory()
+  {
+    final File denyDir = new File("deny/dir");
+    System.out.println(denyDir.toURI());
+    new LocalInputSource(
+        denyDir,
+        "filter",
+        null
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(null, Collections.singletonList(denyDir.toURI()))
+    );
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyFile()
+  {
+    final File denyDir = new File("deny/dir");
+    System.out.println(denyDir.toURI());
+    new LocalInputSource(
+        denyDir,
+        "filter",
+        Collections.singleton(new File("deny/dir/file"))
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(null, Collections.singletonList(denyDir.toURI()))
+    );
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyFileWith()
+  {
+    final File denyDir = new File("deny/dir");
+    new LocalInputSource(
+        denyDir,
+        "filter",
+        Collections.singleton(new File("deny/dir/file"))
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(null, Collections.singletonList(denyDir.toURI()))
+    );
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyAll()
+  {
+    final File denyDir = new File("anydir");
+    new LocalInputSource(
+        denyDir,
+        "filter",
+        Collections.singleton(new File("anydir"))
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.emptyList(), null)
+    );
+  }
+
+  @Test
+  public void testAllowDir()
+  {
+    final File allow = new File("allow/dir");
+    new LocalInputSource(
+        allow,
+        "filter",
+        Collections.singleton(new File("allow/dir"))
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.singletonList(allow.toURI()), null)
+    );
+  }
+
+  @Test
+  public void testAllowSubDir()
+  {
+    final File allow = new File("allow/dir");
+    new LocalInputSource(
+        allow,
+        "filter",
+        Collections.singleton(new File("allow/dir/subDir"))
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.singletonList(allow.toURI()), null)
+    );
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDenyRelativePathFromAllowDir()
+  {
+    final File allow = new File("allow/dir");
+    new LocalInputSource(
+        null,
+        null,
+        Collections.singleton(new File("allow/dir/../../dir2/"))
+    ).validateAllowDenyPrefixList(new InputSourceSecurityConfig(Collections.singletonList(allow.toURI()), null)
+    );
   }
 }
