@@ -62,6 +62,7 @@ public class DataSourceCompactionConfigTest
         new Period(3600),
         null,
         null,
+        null,
         ImmutableMap.of("key", "val")
     );
     final String json = OBJECT_MAPPER.writeValueAsString(config);
@@ -88,6 +89,7 @@ public class DataSourceCompactionConfigTest
         new Period(3600),
         null,
         null,
+        null,
         ImmutableMap.of("key", "val")
     );
     final String json = OBJECT_MAPPER.writeValueAsString(config);
@@ -111,6 +113,7 @@ public class DataSourceCompactionConfigTest
         500L,
         null,
         new Period(3600),
+        null,
         new UserCompactionTaskQueryTuningConfig(
             null,
             null,
@@ -154,6 +157,7 @@ public class DataSourceCompactionConfigTest
         500L,
         10000,
         new Period(3600),
+        null,
         new UserCompactionTaskQueryTuningConfig(
             null,
             null,
@@ -238,6 +242,7 @@ public class DataSourceCompactionConfigTest
         null,
         new Period(3600),
         null,
+        null,
         new UniformGranularitySpec(Granularities.HOUR, null, null),
         ImmutableMap.of("key", "val")
     );
@@ -264,6 +269,7 @@ public class DataSourceCompactionConfigTest
         null,
         new Period(3600),
         null,
+        null,
         new UniformGranularitySpec(Granularities.HOUR, Granularities.MONTH, null),
         ImmutableMap.of("key", "val")
     );
@@ -278,6 +284,7 @@ public class DataSourceCompactionConfigTest
         500L,
         null,
         new Period(3600),
+        null,
         null,
         new UniformGranularitySpec(Granularities.HOUR, Granularities.MONTH, false, null),
         ImmutableMap.of("key", "val")
@@ -294,6 +301,7 @@ public class DataSourceCompactionConfigTest
         null,
         new Period(3600),
         null,
+        null,
         new UniformGranularitySpec(Granularities.HOUR, Granularities.MONTH, ImmutableList.of(Intervals.of("2012-01-08T00Z/2012-01-11T00Z"))),
         ImmutableMap.of("key", "val")
     );
@@ -308,6 +316,7 @@ public class DataSourceCompactionConfigTest
         500L,
         null,
         new Period(3600),
+        null,
         null,
         new ArbitraryGranularitySpec(null, null, null),
         ImmutableMap.of("key", "val")

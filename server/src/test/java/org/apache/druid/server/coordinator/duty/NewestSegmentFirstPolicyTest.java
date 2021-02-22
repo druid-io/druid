@@ -56,7 +56,7 @@ public class NewestSegmentFirstPolicyTest
   private static final long DEFAULT_SEGMENT_SIZE = 1000;
   private static final int DEFAULT_NUM_SEGMENTS_PER_SHARD = 4;
 
-  private final NewestSegmentFirstPolicy policy = new NewestSegmentFirstPolicy(new DefaultObjectMapper());
+  private final NewestSegmentFirstPolicy policy = new NewestSegmentFirstPolicy(new DefaultObjectMapper(), null);
 
   @Test
   public void testLargeOffsetAndSmallSegmentInterval()
@@ -744,6 +744,7 @@ public class NewestSegmentFirstPolicyTest
         inputSegmentSizeBytes,
         null,
         skipOffsetFromLatest,
+        null,
         null,
         granularitySpec,
         null

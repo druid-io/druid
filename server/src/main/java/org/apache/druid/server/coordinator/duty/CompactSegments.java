@@ -78,7 +78,7 @@ public class CompactSegments implements CoordinatorDuty
 
   private static final Logger LOG = new Logger(CompactSegments.class);
 
-  private final CompactionSegmentSearchPolicy policy;
+  private final ObjectMapper objectMapper;
   private final IndexingServiceClient indexingServiceClient;
 
   // This variable is updated by the Coordinator thread executing duties and
@@ -91,7 +91,7 @@ public class CompactSegments implements CoordinatorDuty
       IndexingServiceClient indexingServiceClient
   )
   {
-    this.policy = new NewestSegmentFirstPolicy(objectMapper);
+    this.objectMapper = objectMapper;
     this.indexingServiceClient = indexingServiceClient;
     autoCompactionSnapshotPerDataSource.set(new HashMap<>());
   }
@@ -100,7 +100,7 @@ public class CompactSegments implements CoordinatorDuty
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
     LOG.info("Compact segments");
-
+    CompactionSegmentSearchPolicy policy = new NewestSegmentFirstPolicy(objectMapper, indexingServiceClient);
     final CoordinatorCompactionConfig dynamicConfig = params.getCoordinatorCompactionConfig();
     final CoordinatorStats stats = new CoordinatorStats();
     final Map<String, AutoCompactionSnapshot.Builder> currentRunAutoCompactionSnapshotBuilders = new HashMap<>();

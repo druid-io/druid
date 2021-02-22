@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.apache.druid.client.indexing.ClientCompactionTaskQueryTuningConfig;
+import org.apache.druid.client.indexing.IndexingServiceClient;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.indexer.partitions.PartitionsSpec;
 import org.apache.druid.java.util.common.DateTimes;
@@ -99,7 +100,8 @@ public class NewestSegmentFirstIterator implements CompactionSegmentIterator
       ObjectMapper objectMapper,
       Map<String, DataSourceCompactionConfig> compactionConfigs,
       Map<String, VersionedIntervalTimeline<String, DataSegment>> dataSources,
-      Map<String, List<Interval>> skipIntervals
+      Map<String, List<Interval>> skipIntervals,
+      @Nullable IndexingServiceClient indexingServiceClient
   )
   {
     this.objectMapper = objectMapper;
@@ -151,10 +153,25 @@ public class NewestSegmentFirstIterator implements CompactionSegmentIterator
           }
           timeline = timelineWithConfiguredSegmentGranularity;
         }
-        final List<Interval> searchIntervals =
+        List<Interval> searchIntervals =
             findInitialSearchInterval(timeline, config.getSkipOffsetFromLatest(), configuredSegmentGranularity, skipIntervals.get(dataSource));
         if (!searchIntervals.isEmpty()) {
-          timelineIterators.put(dataSource, new CompactibleTimelineObjectHolderCursor(timeline, searchIntervals, originalShardSpecs));
+          if (indexingServiceClient != null && config.getEnableFilterLockedInterval()) {
+            Collections.sort(searchIntervals, (o1, o2) -> Comparators.intervalsByStartThenEnd().compare(o1, o2));
+            Interval totalSearchInterval = new Interval(
+                searchIntervals.get(0).getStart(),
+                searchIntervals.get(searchIntervals.size() - 1).getEnd()
+            );
+            List<Interval> unlockedIntervals = indexingServiceClient.getNonLockIntervals(dataSource, totalSearchInterval);
+            List<Interval> searchUnlockedIntervals = new ArrayList<>();
+            for (Interval searchInterval : searchIntervals) {
+              searchUnlockedIntervals.addAll(filterLockedIntervals(searchInterval, unlockedIntervals));
+            }
+            searchIntervals = searchUnlockedIntervals;
+          }
+          if (!searchIntervals.isEmpty()) {
+            timelineIterators.put(dataSource, new CompactibleTimelineObjectHolderCursor(timeline, searchIntervals, originalShardSpecs));
+          }
         }
       }
     });
@@ -538,6 +555,25 @@ public class NewestSegmentFirstIterator implements CompactionSegmentIterator
     }
 
     return searchIntervals;
+  }
+
+  /**
+   * Returns a list of intervals which are contained by totalInterval
+   *
+   * @param searchInterval     total interval
+   * @param unlockedIntervals unlocked intervals
+   */
+  private static List<Interval> filterLockedIntervals(Interval searchInterval, List<Interval> unlockedIntervals)
+  {
+    final List<Interval> filteredIntervals = new ArrayList<>(unlockedIntervals.size() + 1);
+
+    for (Interval unlockedInterval : unlockedIntervals) {
+      if (searchInterval.overlaps(unlockedInterval)) {
+        filteredIntervals.add(searchInterval.overlap(unlockedInterval));
+      }
+    }
+
+    return filteredIntervals;
   }
 
   @VisibleForTesting

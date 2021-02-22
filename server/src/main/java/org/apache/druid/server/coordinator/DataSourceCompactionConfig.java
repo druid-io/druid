@@ -48,6 +48,7 @@ public class DataSourceCompactionConfig
   @Nullable
   private final Integer maxRowsPerSegment;
   private final Period skipOffsetFromLatest;
+  private final Boolean enableFilterLockedInterval;
   private final UserCompactionTaskQueryTuningConfig tuningConfig;
   private final GranularitySpec granularitySpec;
   private final Map<String, Object> taskContext;
@@ -59,6 +60,7 @@ public class DataSourceCompactionConfig
       @JsonProperty("inputSegmentSizeBytes") @Nullable Long inputSegmentSizeBytes,
       @JsonProperty("maxRowsPerSegment") @Deprecated @Nullable Integer maxRowsPerSegment,
       @JsonProperty("skipOffsetFromLatest") @Nullable Period skipOffsetFromLatest,
+      @JsonProperty("enableFilterLockedInterval") @Nullable Boolean enableFilterLockedInterval,
       @JsonProperty("tuningConfig") @Nullable UserCompactionTaskQueryTuningConfig tuningConfig,
       @JsonProperty("granularitySpec") @Nullable GranularitySpec granularitySpec,
       @JsonProperty("taskContext") @Nullable Map<String, Object> taskContext
@@ -73,6 +75,7 @@ public class DataSourceCompactionConfig
                                  : inputSegmentSizeBytes;
     this.maxRowsPerSegment = maxRowsPerSegment;
     this.skipOffsetFromLatest = skipOffsetFromLatest == null ? DEFAULT_SKIP_OFFSET_FROM_LATEST : skipOffsetFromLatest;
+    this.enableFilterLockedInterval = enableFilterLockedInterval == null ? false : enableFilterLockedInterval;
     this.tuningConfig = tuningConfig;
     if (granularitySpec != null) {
       Preconditions.checkArgument(
@@ -128,6 +131,12 @@ public class DataSourceCompactionConfig
   }
 
   @JsonProperty
+  public Boolean getEnableFilterLockedInterval()
+  {
+    return enableFilterLockedInterval;
+  }
+
+  @JsonProperty
   @Nullable
   public UserCompactionTaskQueryTuningConfig getTuningConfig()
   {
@@ -163,6 +172,7 @@ public class DataSourceCompactionConfig
            Objects.equals(dataSource, that.dataSource) &&
            Objects.equals(maxRowsPerSegment, that.maxRowsPerSegment) &&
            Objects.equals(skipOffsetFromLatest, that.skipOffsetFromLatest) &&
+           Objects.equals(enableFilterLockedInterval, that.enableFilterLockedInterval) &&
            Objects.equals(tuningConfig, that.tuningConfig) &&
            Objects.equals(granularitySpec, that.granularitySpec) &&
            Objects.equals(taskContext, that.taskContext);
@@ -177,6 +187,7 @@ public class DataSourceCompactionConfig
         inputSegmentSizeBytes,
         maxRowsPerSegment,
         skipOffsetFromLatest,
+        enableFilterLockedInterval,
         tuningConfig,
         granularitySpec,
         taskContext

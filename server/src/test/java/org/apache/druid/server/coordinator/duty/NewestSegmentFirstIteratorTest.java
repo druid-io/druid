@@ -92,6 +92,7 @@ public class NewestSegmentFirstIteratorTest
         null,
         null,
         null,
+        null,
         null
     );
     Assert.assertEquals(
@@ -107,6 +108,7 @@ public class NewestSegmentFirstIteratorTest
   {
     final DataSourceCompactionConfig config = new DataSourceCompactionConfig(
         "datasource",
+        null,
         null,
         null,
         null,
@@ -150,6 +152,7 @@ public class NewestSegmentFirstIteratorTest
         null,
         null,
         null,
+        null,
         new UserCompactionTaskQueryTuningConfig(
             null,
             null,
@@ -185,6 +188,7 @@ public class NewestSegmentFirstIteratorTest
   {
     final DataSourceCompactionConfig config = new DataSourceCompactionConfig(
         "datasource",
+        null,
         null,
         null,
         null,
@@ -228,6 +232,7 @@ public class NewestSegmentFirstIteratorTest
         null,
         100,
         null,
+        null,
         new UserCompactionTaskQueryTuningConfig(
             null,
             null,
@@ -267,6 +272,7 @@ public class NewestSegmentFirstIteratorTest
         null,
         100,
         null,
+        null,
         new UserCompactionTaskQueryTuningConfig(
             null,
             null,
@@ -302,6 +308,7 @@ public class NewestSegmentFirstIteratorTest
   {
     final DataSourceCompactionConfig config = new DataSourceCompactionConfig(
         "datasource",
+        null,
         null,
         null,
         null,
@@ -345,6 +352,7 @@ public class NewestSegmentFirstIteratorTest
         null,
         null,
         null,
+        null,
         new UserCompactionTaskQueryTuningConfig(
             null,
             null,
@@ -380,6 +388,7 @@ public class NewestSegmentFirstIteratorTest
   {
     final DataSourceCompactionConfig config = new DataSourceCompactionConfig(
         "datasource",
+        null,
         null,
         null,
         null,
