@@ -19,7 +19,7 @@
 
 package org.apache.druid.segment.data;
 
-import com.google.common.primitives.Ints;
+import org.apache.druid.com.google.common.primitives.Ints;
 import org.apache.druid.common.utils.ByteUtils;
 import org.apache.druid.java.util.common.io.smoosh.FileSmoosher;
 import org.apache.druid.segment.serde.MetaSerdeHelper;
@@ -27,7 +27,6 @@ import org.apache.druid.segment.writeout.SegmentWriteOutMedium;
 import org.apache.druid.segment.writeout.WriteOutBytes;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;

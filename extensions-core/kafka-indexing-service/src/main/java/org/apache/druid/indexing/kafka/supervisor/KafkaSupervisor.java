@@ -22,7 +22,7 @@ package org.apache.druid.indexing.kafka.supervisor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.druid.com.google.common.annotations.VisibleForTesting;
 import org.apache.druid.common.utils.IdUtils;
 import org.apache.druid.data.input.kafka.KafkaRecordEntity;
 import org.apache.druid.indexing.common.task.Task;
@@ -59,7 +59,6 @@ import org.apache.druid.server.metrics.DruidMonitorSchedulerConfig;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

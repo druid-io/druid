@@ -19,21 +19,21 @@
 
 package org.apache.druid.indexing.overlord.http;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.io.ByteSource;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
 import org.apache.druid.audit.AuditEntry;
 import org.apache.druid.audit.AuditInfo;
 import org.apache.druid.audit.AuditManager;
 import org.apache.druid.client.indexing.ClientTaskQuery;
+import org.apache.druid.com.google.common.base.Function;
+import org.apache.druid.com.google.common.base.Optional;
+import org.apache.druid.com.google.common.collect.ImmutableList;
+import org.apache.druid.com.google.common.collect.ImmutableMap;
+import org.apache.druid.com.google.common.collect.Lists;
+import org.apache.druid.com.google.common.collect.Maps;
+import org.apache.druid.com.google.common.io.ByteSource;
+import org.apache.druid.com.google.common.util.concurrent.ListenableFuture;
+import org.apache.druid.com.google.common.util.concurrent.SettableFuture;
 import org.apache.druid.common.config.ConfigManager.SetResult;
 import org.apache.druid.common.config.JacksonConfigManager;
 import org.apache.druid.indexer.RunnerTaskState;

@@ -19,8 +19,8 @@
 
 package org.apache.druid.segment.serde;
 
-import com.google.common.base.Supplier;
 import org.apache.druid.collections.spatial.ImmutableRTree;
+import org.apache.druid.com.google.common.base.Supplier;
 import org.apache.druid.segment.column.SpatialIndex;
 
 /**

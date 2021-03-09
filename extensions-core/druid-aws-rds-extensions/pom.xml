@@ -47,7 +47,7 @@
       <version>${aws.sdk.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
+      <groupId>org.apache.druid.com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <scope>provided</scope>
     </dependency>

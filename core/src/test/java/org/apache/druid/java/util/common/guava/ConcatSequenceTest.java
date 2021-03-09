@@ -19,11 +19,11 @@
 
 package org.apache.druid.java.util.common.guava;
 
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import junit.framework.Assert;
+import org.apache.druid.com.google.common.base.Function;
+import org.apache.druid.com.google.common.collect.ImmutableList;
+import org.apache.druid.com.google.common.collect.Iterables;
+import org.apache.druid.com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.io.IOException;

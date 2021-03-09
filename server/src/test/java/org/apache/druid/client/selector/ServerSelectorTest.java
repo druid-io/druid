@@ -19,10 +19,10 @@
 
 package org.apache.druid.client.selector;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.apache.druid.client.DirectDruidClient;
 import org.apache.druid.client.DruidServer;
+import org.apache.druid.com.google.common.collect.ImmutableList;
+import org.apache.druid.com.google.common.collect.ImmutableMap;
 import org.apache.druid.java.util.common.Intervals;
 import org.apache.druid.server.coordination.ServerType;
 import org.apache.druid.timeline.DataSegment;

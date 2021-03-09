@@ -19,11 +19,11 @@
 
 package org.apache.druid.query.aggregation.datasketches.tuple;
 
-import com.google.common.util.concurrent.Striped;
 import org.apache.datasketches.memory.WritableMemory;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesSketches;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesUpdatableSketch;
 import org.apache.datasketches.tuple.arrayofdoubles.ArrayOfDoublesUpdatableSketchBuilder;
+import org.apache.druid.com.google.common.util.concurrent.Striped;
 import org.apache.druid.query.aggregation.BufferAggregator;
 import org.apache.druid.query.monomorphicprocessing.RuntimeShapeInspector;
 import org.apache.druid.segment.BaseDoubleColumnValueSelector;
@@ -31,7 +31,6 @@ import org.apache.druid.segment.DimensionSelector;
 import org.apache.druid.segment.data.IndexedInts;
 
 import javax.annotation.Nullable;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
@@ -171,7 +170,7 @@ public class ArrayOfDoublesSketchBuildBufferAggregator implements BufferAggregat
     return smear(position) % NUM_STRIPES;
   }
 
-  // from https://github.com/google/guava/blob/master/guava/src/com/google/common/util/concurrent/Striped.java#L536-L548
+  // from https://github.com/google/guava/blob/master/guava/src/org.apache.druid.com.google.common/util/concurrent/Striped.java#L536-L548
   private static int smear(int hashCode)
   {
     hashCode ^= (hashCode >>> 20) ^ (hashCode >>> 12);

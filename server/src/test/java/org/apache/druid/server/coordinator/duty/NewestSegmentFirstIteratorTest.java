@@ -19,9 +19,9 @@
 
 package org.apache.druid.server.coordinator.duty;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.apache.druid.client.indexing.ClientCompactionTaskQueryTuningConfig;
+import org.apache.druid.com.google.common.collect.ImmutableList;
+import org.apache.druid.com.google.common.collect.Lists;
 import org.apache.druid.indexer.partitions.DynamicPartitionsSpec;
 import org.apache.druid.indexer.partitions.HashedPartitionsSpec;
 import org.apache.druid.indexer.partitions.SingleDimensionPartitionsSpec;
