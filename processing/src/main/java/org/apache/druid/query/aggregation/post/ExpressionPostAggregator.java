@@ -96,7 +96,7 @@ public class ExpressionPostAggregator implements PostAggregator
     );
   }
 
-  private ExpressionPostAggregator(
+  public ExpressionPostAggregator(
       final String name,
       final String expression,
       @Nullable final String ordering,

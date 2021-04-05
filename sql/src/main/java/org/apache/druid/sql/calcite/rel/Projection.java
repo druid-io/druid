@@ -21,6 +21,7 @@ package org.apache.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -184,7 +185,9 @@ public class Projection
           postAggregatorVisitor.getOutputNamePrefix() + postAggregatorVisitor.getAndIncrementCounter(),
           postAggregatorExpression.getExpression(),
           null,
-          plannerContext.getExprMacroTable()
+          plannerContext.getExprMacroTable(),
+          ImmutableMap.of(),
+          plannerContext.getCachingExprParser().lazyParse(postAggregatorExpression.getExpression())
       );
       postAggregatorVisitor.addPostAgg(postAggregator);
       rowOrder.add(postAggregator.getName());
