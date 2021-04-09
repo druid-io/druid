@@ -479,6 +479,22 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       final List<Interval> allocateIntervals = new ArrayList<>(partitionAnalysis.getAllIntervalsToIndex());
       final DataSchema dataSchema;
       if (determineIntervals) {
+        // For any type of secondary partitioning that needed to dynamically determine intervals, abort task if
+        // identified interval count was greater than configured value in tuningConfig.
+        if (allocateIntervals.size() > tuningConfig.getMaxSegmentIntervalsPermitted()) {
+          errorMsg = "IndexTask Failed! The number of segment intervals ["
+                     + allocateIntervals.size()
+                     + "] is greater than the number allowed ["
+                     + tuningConfig.getMaxSegmentIntervalsPermitted()
+                     + "], as specified in TuningConfig.";
+          log.error(errorMsg);
+          toolbox.getTaskReportFileWriter().write(getId(), getTaskCompletionReports());
+          return TaskStatus.failure(
+              getId(),
+              errorMsg
+          );
+        }
+
         if (!determineLockGranularityAndTryLock(toolbox.getTaskActionClient(), allocateIntervals)) {
           throw new ISE("Failed to get locks for intervals[%s]", allocateIntervals);
         }
@@ -490,6 +506,38 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         );
       } else {
         dataSchema = ingestionSchema.getDataSchema();
+      }
+
+      // If PartitionsSpec is non null and this task needed to determine partitions within intervals, gather the
+      // aggregate number of partitions within all buckets and abort if the number is greater than the value configured
+      // in tuningConfig
+      if (tuningConfig.getPartitionsSpec() != null
+          && tuningConfig.getPartitionsSpec().needsDeterminePartitions(false)) {
+        // Gather the aggregate number of shards in the intervals being indexed by looking up each intervals bucket size
+        int aggregateBuckets = 0;
+        Set<Interval> intervalSet = partitionAnalysis.getAllIntervalsToIndex();
+        for (Interval interval : intervalSet) {
+          try {
+            aggregateBuckets += (Integer) partitionAnalysis.getBucketAnalysis(interval);
+          }
+          catch (IllegalArgumentException e) {
+            log.warn("Oh no, I just caught an IllegalArgumentException when looking up bucket sizes for "
+                     + "intervals specified by this indexing task! I'm going to move on to the next Interval.");
+          }
+        }
+        if (aggregateBuckets > tuningConfig.getMaxAggregateSegmentsPermitted()) {
+          errorMsg = "IndexTask Failed! The aggregate number of segments that will be created ["
+                     + aggregateBuckets
+                     + "] is greater than the number allowed ["
+                     + tuningConfig.getMaxAggregateSegmentsPermitted()
+                     + "], as specified in the tuning config";
+          log.error(errorMsg);
+          toolbox.getTaskReportFileWriter().write(getId(), getTaskCompletionReports());
+          return TaskStatus.failure(
+              getId(),
+              errorMsg
+          );
+        }
       }
 
       ingestionState = IngestionState.BUILD_SEGMENTS;
@@ -1169,6 +1217,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
     private final boolean logParseExceptions;
     private final int maxParseExceptions;
     private final int maxSavedParseExceptions;
+    private final int maxSegmentIntervalsPermitted;
+    private final int maxAggregateSegmentsPermitted;
 
     @Nullable
     private final SegmentWriteOutMediumFactory segmentWriteOutMediumFactory;
@@ -1238,7 +1288,9 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         @JsonProperty("logParseExceptions") @Nullable Boolean logParseExceptions,
         @JsonProperty("maxParseExceptions") @Nullable Integer maxParseExceptions,
         @JsonProperty("maxSavedParseExceptions") @Nullable Integer maxSavedParseExceptions,
-        @JsonProperty("maxColumnsToMerge") @Nullable Integer maxColumnsToMerge
+        @JsonProperty("maxColumnsToMerge") @Nullable Integer maxColumnsToMerge,
+        @JsonProperty("maxSegmentIntervalsPermitted") @Nullable Integer maxSegmentIntervalsPermitted,
+        @JsonProperty("maxAggregateSegmentsPermitted") @Nullable Integer maxAggregateSegmentsPermitted
     )
     {
       this(
@@ -1265,7 +1317,9 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           logParseExceptions,
           maxParseExceptions,
           maxSavedParseExceptions,
-          maxColumnsToMerge
+          maxColumnsToMerge,
+          maxSegmentIntervalsPermitted,
+          maxAggregateSegmentsPermitted
       );
 
       Preconditions.checkArgument(
@@ -1276,7 +1330,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
 
     private IndexTuningConfig()
     {
-      this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+      this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private IndexTuningConfig(
@@ -1296,7 +1350,9 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
         @Nullable Boolean logParseExceptions,
         @Nullable Integer maxParseExceptions,
         @Nullable Integer maxSavedParseExceptions,
-        @Nullable Integer maxColumnsToMerge
+        @Nullable Integer maxColumnsToMerge,
+        @Nullable Integer maxSegmentIntervalsPermitted,
+        @Nullable Integer maxAggregateSegmentsPermitted
     )
     {
       this.appendableIndexSpec = appendableIndexSpec == null ? DEFAULT_APPENDABLE_INDEX : appendableIndexSpec;
@@ -1337,6 +1393,12 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       this.logParseExceptions = logParseExceptions == null
                                 ? TuningConfig.DEFAULT_LOG_PARSE_EXCEPTIONS
                                 : logParseExceptions;
+      this.maxSegmentIntervalsPermitted = maxSegmentIntervalsPermitted == null
+                                          ? DEFAULT_MAX_SEGMENT_INTERVALS_PERMITTED
+                                          : maxSegmentIntervalsPermitted;
+      this.maxAggregateSegmentsPermitted = maxAggregateSegmentsPermitted == null
+                                                        ? DEFAULT_MAX_AGGREGATE_SEGMENT_INTERVAL_SHARDS_PERMITTED
+                                                        : maxAggregateSegmentsPermitted;
     }
 
     @Override
@@ -1359,7 +1421,9 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           logParseExceptions,
           maxParseExceptions,
           maxSavedParseExceptions,
-          maxColumnsToMerge
+          maxColumnsToMerge,
+          maxSegmentIntervalsPermitted,
+          maxAggregateSegmentsPermitted
       );
     }
 
@@ -1382,7 +1446,9 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           logParseExceptions,
           maxParseExceptions,
           maxSavedParseExceptions,
-          maxColumnsToMerge
+          maxColumnsToMerge,
+          maxSegmentIntervalsPermitted,
+          maxAggregateSegmentsPermitted
       );
     }
 
@@ -1562,6 +1628,18 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
              : Collections.emptyList();
     }
 
+    @JsonProperty
+    public int getMaxSegmentIntervalsPermitted()
+    {
+      return maxSegmentIntervalsPermitted;
+    }
+
+    @JsonProperty
+    public int getMaxAggregateSegmentsPermitted()
+    {
+      return maxAggregateSegmentsPermitted;
+    }
+
     @Override
     public File getBasePersistDirectory()
     {
@@ -1600,7 +1678,9 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
              Objects.equals(indexSpec, that.indexSpec) &&
              Objects.equals(indexSpecForIntermediatePersists, that.indexSpecForIntermediatePersists) &&
              Objects.equals(basePersistDirectory, that.basePersistDirectory) &&
-             Objects.equals(segmentWriteOutMediumFactory, that.segmentWriteOutMediumFactory);
+             Objects.equals(segmentWriteOutMediumFactory, that.segmentWriteOutMediumFactory) &&
+             maxSegmentIntervalsPermitted == that.maxSegmentIntervalsPermitted &&
+             maxAggregateSegmentsPermitted == that.maxAggregateSegmentsPermitted;
     }
 
     @Override
@@ -1623,7 +1703,9 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
           logParseExceptions,
           maxParseExceptions,
           maxSavedParseExceptions,
-          segmentWriteOutMediumFactory
+          segmentWriteOutMediumFactory,
+          maxSegmentIntervalsPermitted,
+          maxAggregateSegmentsPermitted
       );
     }
 
@@ -1647,6 +1729,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
              ", maxParseExceptions=" + maxParseExceptions +
              ", maxSavedParseExceptions=" + maxSavedParseExceptions +
              ", segmentWriteOutMediumFactory=" + segmentWriteOutMediumFactory +
+             ", maxSegmentIntervalsPermitted=" + maxSegmentIntervalsPermitted +
+             ", maxAggregateSegmentsPermitted=" + maxAggregateSegmentsPermitted +
              '}';
     }
   }

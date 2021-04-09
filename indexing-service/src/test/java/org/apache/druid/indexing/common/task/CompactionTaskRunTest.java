@@ -481,7 +481,7 @@ public class CompactionTaskRunTest extends IngestionTestBase
                 Granularities.MINUTE,
                 null
             ),
-            IndexTaskTest.createTuningConfig(2, 2, null, 2L, null, false, true),
+            IndexTaskTest.createTuningConfig(2, 2, null, 2L, null, false, true, null, null),
             false,
             false
         ),
@@ -1082,7 +1082,7 @@ public class CompactionTaskRunTest extends IngestionTestBase
                 false,
                 false
             ),
-            IndexTaskTest.createTuningConfig(5000000, null, null, Long.MAX_VALUE, null, false, true)
+            IndexTaskTest.createTuningConfig(5000000, null, null, Long.MAX_VALUE, null, false, true, null, null)
         ),
         null
     );
@@ -1155,7 +1155,7 @@ public class CompactionTaskRunTest extends IngestionTestBase
                 Granularities.MINUTE,
                 null
             ),
-            IndexTaskTest.createTuningConfig(2, 2, null, 2L, null, false, true),
+            IndexTaskTest.createTuningConfig(2, 2, null, 2L, null, false, true, null, null),
             appendToExisting,
             false
         ),

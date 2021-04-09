@@ -49,21 +49,49 @@ public class ITCombiningFirehoseFactoryIndexTest extends AbstractITBatchIndexTes
     ) {
       final Function<String, String> combiningFirehoseSpecTransform = spec -> {
         try {
-          return StringUtils.replace(
+          spec = StringUtils.replace(
               spec,
               "%%COMBINING_DATASOURCE%%",
               INDEX_DATASOURCE + config.getExtraDatasourceNameSuffix()
           );
+          return spec;
         }
         catch (Exception e) {
           throw new RuntimeException(e);
         }
       };
+
+      final Function<String, String> nonCombiningFirehoseSpecTransform = spec -> {
+        try {
+          spec = StringUtils.replace(
+              spec,
+              "%%MAX_SEGMENT_INTERVALS_PERMITTED%%",
+              jsonMapper.writeValueAsString(Integer.MAX_VALUE)
+          );
+          spec = StringUtils.replace(
+              spec,
+              "%%MAX_AGGREGATE_SEGMENTS_PERMITTED%%",
+              jsonMapper.writeValueAsString(Integer.MAX_VALUE)
+          );
+          spec = StringUtils.replace(
+              spec,
+              "%%FORCE_GUARANTEED_ROLLUP%%",
+              jsonMapper.writeValueAsString(false)
+          );
+          return spec;
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      };
+
       doIndexTest(
           INDEX_DATASOURCE,
           INDEX_TASK,
+          nonCombiningFirehoseSpecTransform,
           INDEX_QUERIES_RESOURCE,
           false,
+          true,
           true,
           true
       );
@@ -73,6 +101,7 @@ public class ITCombiningFirehoseFactoryIndexTest extends AbstractITBatchIndexTes
           combiningFirehoseSpecTransform,
           COMBINING_QUERIES_RESOURCE,
           false,
+          true,
           true,
           true
       );

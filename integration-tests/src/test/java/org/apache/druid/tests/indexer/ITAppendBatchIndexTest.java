@@ -180,6 +180,7 @@ public class ITAppendBatchIndexTest extends AbstractITBatchIndexTest
         null,
         false,
         false,
+        true,
         true
     );
   }

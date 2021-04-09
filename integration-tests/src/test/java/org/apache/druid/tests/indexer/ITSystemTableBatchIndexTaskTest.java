@@ -19,6 +19,7 @@
 
 package org.apache.druid.tests.indexer;
 
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.java.util.common.logger.Logger;
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
 import org.apache.druid.tests.TestNGGroup;
@@ -26,6 +27,7 @@ import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
 
 import java.io.Closeable;
+import java.util.function.Function;
 
 @Test(groups = TestNGGroup.BATCH_INDEX)
 @Guice(moduleFactory = DruidTestModuleFactory.class)
@@ -43,9 +45,35 @@ public class ITSystemTableBatchIndexTaskTest extends AbstractITBatchIndexTest
     try (
         final Closeable ignored = unloader(INDEX_DATASOURCE + config.getExtraDatasourceNameSuffix())
     ) {
+      final Function<String, String> transform = spec -> {
+        try {
+          spec = StringUtils.replace(
+              spec,
+              "%%MAX_SEGMENT_INTERVALS_PERMITTED%%",
+              jsonMapper.writeValueAsString(Integer.MAX_VALUE)
+          );
+          spec = StringUtils.replace(
+              spec,
+              "%%MAX_AGGREGATE_SEGMENTS_PERMITTED%%",
+              jsonMapper.writeValueAsString(Integer.MAX_VALUE)
+          );
+          spec = StringUtils.replace(
+              spec,
+              "%%FORCE_GUARANTEED_ROLLUP%%",
+              jsonMapper.writeValueAsString(false)
+          );
+
+          return spec;
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      };
+
       doIndexTestSqlTest(
           INDEX_DATASOURCE,
           INDEX_TASK,
+          transform,
           SYSTEM_QUERIES_RESOURCE
       );
     }

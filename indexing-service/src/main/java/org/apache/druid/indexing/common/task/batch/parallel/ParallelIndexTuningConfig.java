@@ -161,7 +161,9 @@ public class ParallelIndexTuningConfig extends IndexTuningConfig
         logParseExceptions,
         maxParseExceptions,
         maxSavedParseExceptions,
-        maxColumnsToMerge
+        maxColumnsToMerge,
+        null,
+        null
     );
 
     if (maxNumSubTasks != null && maxNumConcurrentSubTasks != null) {

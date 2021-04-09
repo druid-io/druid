@@ -1,27 +1,8 @@
 {
-  "type": "index_parallel",
+  "type": "index",
   "spec": {
     "dataSchema": {
       "dataSource": "%%DATASOURCE%%",
-      "timestampSpec": {
-        "column": "timestamp"
-      },
-      "dimensionsSpec": {
-        "dimensions": [
-          "page",
-          {"type": "string", "name": "language", "createBitmapIndex": false},
-          "user",
-          "unpatrolled",
-          "newPage",
-          "robot",
-          "anonymous",
-          "namespace",
-          "continent",
-          "country",
-          "region",
-          "city"
-        ]
-      },
       "metricsSpec": [
         {
           "type": "count",
@@ -62,25 +43,48 @@
         "segmentGranularity": "DAY",
         "queryGranularity": "second",
         "intervals" : [ "2013-08-31/2013-09-02" ]
+      },
+      "parser": {
+        "parseSpec": {
+          "format" : "json",
+          "timestampSpec": {
+            "column": "timestamp"
+          },
+          "dimensionsSpec": {
+            "dimensions": [
+              "page",
+              {"type": "string", "name": "language", "createBitmapIndex": false},
+              "user",
+              "unpatrolled",
+              "newPage",
+              "robot",
+              "anonymous",
+              "namespace",
+              "continent",
+              "country",
+              "region",
+              "city"
+            ]
+          }
+        }
       }
     },
     "ioConfig": {
-      "type": "index_parallel",
-      "inputSource": {
-        "type": "%%INPUT_SOURCE_TYPE%%",
-        "%%INPUT_SOURCE_PROPERTY_KEY%%": %%INPUT_SOURCE_PROPERTY_VALUE%%
-      },
-      "inputFormat": {
-        "type": "%%INPUT_FORMAT_TYPE%%"
+      "type": "index",
+      "firehose": {
+        "type": "local",
+        "baseDir": "/resources/data/batch_index/json",
+        "filter": "wikipedia_index_data*"
       }
     },
     "tuningConfig": {
-      "type": "index_parallel",
-      "maxNumConcurrentSubTasks": 10,
-      "partitionsSpec": %%PARTITIONS_SPEC%%,
-      "splitHintSpec": {
-        "type": "maxSize",
-        "maxNumFiles": 1
+      "type": "index",
+      "forceGuaranteedRollup": %%FORCE_GUARANTEED_ROLLUP%%,
+      "maxSegmentIntervalsPermitted": %%MAX_SEGMENT_INTERVALS_PERMITTED%%,
+      "maxAggregateSegmentsPermitted": %%MAX_AGGREGATE_SEGMENTS_PERMITTED%%,
+      "partitionsSpec": {
+        "type": "hashed",
+        "maxRowsPerSegment": 3
       }
     }
   }

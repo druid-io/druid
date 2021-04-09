@@ -864,7 +864,7 @@ public class IndexTaskTest extends IngestionTestBase
                 null
             ),
             null,
-            createTuningConfig(2, 2, null, 2L, null, false, true),
+            createTuningConfig(2, 2, null, 2L, null, false, true, null, null),
             false,
             false
         ),
@@ -908,7 +908,7 @@ public class IndexTaskTest extends IngestionTestBase
                 null
             ),
             null,
-            createTuningConfig(3, 2, null, 2L, null, true, true),
+            createTuningConfig(3, 2, null, 2L, null, true, true, null, null),
             false,
             false
         ),
@@ -951,7 +951,7 @@ public class IndexTaskTest extends IngestionTestBase
                 null
             ),
             null,
-            createTuningConfig(3, 2, null, 2L, null, false, true),
+            createTuningConfig(3, 2, null, 2L, null, false, true, null, null),
             false,
             false
         ),
@@ -1004,7 +1004,7 @@ public class IndexTaskTest extends IngestionTestBase
     final TimestampSpec timestampSpec = new TimestampSpec("time", "auto", null);
     final List<String> columns = Arrays.asList("time", "dim", "val");
     // ignore parse exception
-    final IndexTuningConfig tuningConfig = createTuningConfig(2, null, null, null, null, false, false);
+    final IndexTuningConfig tuningConfig = createTuningConfig(2, null, null, null, null, false, false, null, null);
 
     // GranularitySpec.intervals and numShards must be null to verify reportParseException=false is respected both in
     // IndexTask.determineShardSpecs() and IndexTask.generateAndPublishSegments()
@@ -1065,7 +1065,7 @@ public class IndexTaskTest extends IngestionTestBase
     final TimestampSpec timestampSpec = new TimestampSpec("time", "auto", null);
     final List<String> columns = Arrays.asList("time", "dim", "val");
     // report parse exception
-    final IndexTuningConfig tuningConfig = createTuningConfig(2, null, null, null, null, false, true);
+    final IndexTuningConfig tuningConfig = createTuningConfig(2, null, null, null, null, false, true, null, null);
     final IndexIngestionSpec indexIngestionSpec;
     if (useInputFormatApi) {
       indexIngestionSpec = createIngestionSpec(
@@ -1160,6 +1160,8 @@ public class IndexTaskTest extends IngestionTestBase
         true,
         7,
         7,
+        null,
+        null,
         null
     );
 
@@ -1293,6 +1295,8 @@ public class IndexTaskTest extends IngestionTestBase
         true,
         2,
         5,
+        null,
+        null,
         null
     );
 
@@ -1418,6 +1422,8 @@ public class IndexTaskTest extends IngestionTestBase
         true,
         2,
         5,
+        null,
+        null,
         null
     );
 
@@ -1530,7 +1536,7 @@ public class IndexTaskTest extends IngestionTestBase
     }
 
     // report parse exception
-    final IndexTuningConfig tuningConfig = createTuningConfig(2, 1, null, null, null, true, true);
+    final IndexTuningConfig tuningConfig = createTuningConfig(2, 1, null, null, null, true, true, null, null);
     final IndexIngestionSpec ingestionSpec;
     if (useInputFormatApi) {
       ingestionSpec = createIngestionSpec(
@@ -1604,7 +1610,7 @@ public class IndexTaskTest extends IngestionTestBase
 
     final List<String> columns = Arrays.asList("ts", "", "");
     // report parse exception
-    final IndexTuningConfig tuningConfig = createTuningConfig(2, null, null, null, null, false, true);
+    final IndexTuningConfig tuningConfig = createTuningConfig(2, null, null, null, null, false, true, null, null);
     final IndexIngestionSpec ingestionSpec;
     if (useInputFormatApi) {
       ingestionSpec = createIngestionSpec(
@@ -1678,7 +1684,7 @@ public class IndexTaskTest extends IngestionTestBase
                   null
               ),
               null,
-              createTuningConfig(3, 2, null, 2L, null, false, true),
+              createTuningConfig(3, 2, null, 2L, null, false, true, null, null),
               false,
               false
           ),
@@ -1743,7 +1749,7 @@ public class IndexTaskTest extends IngestionTestBase
                   null
               ),
               null,
-              createTuningConfig(3, 2, null, 2L, null, false, true),
+              createTuningConfig(3, 2, null, 2L, null, false, true, null, null),
               false,
               false
           ),
@@ -1790,6 +1796,374 @@ public class IndexTaskTest extends IngestionTestBase
         "partitionsSpec[org.apache.druid.indexer.partitions.SingleDimensionPartitionsSpec] is not supported"
     );
     task.isReady(createActionClient(task));
+  }
+
+  @Test
+  public void testHashedPartitioningFailureDueToIntervalCount() throws Exception
+  {
+    final File tmpDir = temporaryFolder.newFolder();
+
+    final File tmpFile = File.createTempFile("druid", "index", tmpDir);
+
+    try (BufferedWriter writer = Files.newWriter(tmpFile, StandardCharsets.UTF_8)) {
+      writer.write("time,dim,dimLong,dimFloat,val\n");
+      writer.write("2014-01-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-02-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-03-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-04-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+    }
+
+    // Allow up to 3 parse exceptions, and save up to 2 parse exceptions
+    final IndexTuningConfig tuningConfig = new IndexTuningConfig(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        new HashedPartitionsSpec(2, null, null),
+        INDEX_SPEC,
+        null,
+        null,
+        true,
+        false,
+        null,
+        null,
+        null,
+        true,
+        2,
+        5,
+        null,
+        1,
+        null
+    );
+
+    final TimestampSpec timestampSpec = new TimestampSpec("time", "auto", null);
+    final DimensionsSpec dimensionsSpec = new DimensionsSpec(
+        Arrays.asList(
+            new StringDimensionSchema("dim"),
+            new LongDimensionSchema("dimLong"),
+            new FloatDimensionSchema("dimFloat")
+        )
+    );
+    final List<String> columns = Arrays.asList("time", "dim", "dimLong", "dimFloat", "val");
+    final IndexIngestionSpec ingestionSpec;
+    if (useInputFormatApi) {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          timestampSpec,
+          dimensionsSpec,
+          new CsvInputFormat(columns, null, null, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.MONTH, null),
+          tuningConfig,
+          false,
+          false
+      );
+    } else {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          new CSVParseSpec(timestampSpec, dimensionsSpec, null, columns, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.MONTH, null),
+          tuningConfig,
+          false,
+          false
+      );
+    }
+
+    IndexTask indexTask = new IndexTask(
+        null,
+        null,
+        ingestionSpec,
+        null
+    );
+
+    TaskStatus status = runTask(indexTask).lhs;
+    Assert.assertEquals(TaskState.FAILED, status.getStatusCode());
+  }
+
+  @Test
+  public void testHashedPartitioningFailureDueToAggregateSegmentCount() throws Exception
+  {
+    final File tmpDir = temporaryFolder.newFolder();
+
+    final File tmpFile = File.createTempFile("druid", "index", tmpDir);
+
+    try (BufferedWriter writer = Files.newWriter(tmpFile, StandardCharsets.UTF_8)) {
+      writer.write("time,dim,dimLong,dimFloat,val\n");
+      writer.write("2014-01-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-01-01T05:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-01-01T06:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-02-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-03-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-04-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+    }
+
+    // Allow up to 3 parse exceptions, and save up to 2 parse exceptions
+    final IndexTuningConfig tuningConfig = new IndexTuningConfig(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        new HashedPartitionsSpec(2, null, null),
+        INDEX_SPEC,
+        null,
+        null,
+        true,
+        false,
+        null,
+        null,
+        null,
+        true,
+        2,
+        5,
+        null,
+        4,
+        4
+    );
+
+    final TimestampSpec timestampSpec = new TimestampSpec("time", "auto", null);
+    final DimensionsSpec dimensionsSpec = new DimensionsSpec(
+        Arrays.asList(
+            new StringDimensionSchema("dim"),
+            new LongDimensionSchema("dimLong"),
+            new FloatDimensionSchema("dimFloat")
+        )
+    );
+    final List<String> columns = Arrays.asList("time", "dim", "dimLong", "dimFloat", "val");
+    final IndexIngestionSpec ingestionSpec;
+    if (useInputFormatApi) {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          timestampSpec,
+          dimensionsSpec,
+          new CsvInputFormat(columns, null, null, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.HOUR, null),
+          tuningConfig,
+          false,
+          false
+      );
+    } else {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          new CSVParseSpec(timestampSpec, dimensionsSpec, null, columns, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.HOUR, null),
+          tuningConfig,
+          false,
+          false
+      );
+    }
+
+    IndexTask indexTask = new IndexTask(
+        null,
+        null,
+        ingestionSpec,
+        null
+    );
+
+    TaskStatus status = runTask(indexTask).lhs;
+    Assert.assertEquals(TaskState.FAILED, status.getStatusCode());
+  }
+
+  @Test
+  public void testHashedPartitioningNonNullIntervalsFailureDueToAggregateSegmentCount() throws Exception
+  {
+    final File tmpDir = temporaryFolder.newFolder();
+
+    final File tmpFile = File.createTempFile("druid", "index", tmpDir);
+
+    try (BufferedWriter writer = Files.newWriter(tmpFile, StandardCharsets.UTF_8)) {
+      writer.write("time,dim,dimLong,dimFloat,val\n");
+      writer.write("2014-01-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-01-01T05:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-01-01T06:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-02-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-03-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-04-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+    }
+
+    // Allow up to 3 parse exceptions, and save up to 2 parse exceptions
+    final IndexTuningConfig tuningConfig = new IndexTuningConfig(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        new HashedPartitionsSpec(2, null, null),
+        INDEX_SPEC,
+        null,
+        null,
+        true,
+        false,
+        null,
+        null,
+        null,
+        true,
+        2,
+        5,
+        null,
+        0,
+        4
+    );
+
+    final TimestampSpec timestampSpec = new TimestampSpec("time", "auto", null);
+    final DimensionsSpec dimensionsSpec = new DimensionsSpec(
+        Arrays.asList(
+            new StringDimensionSchema("dim"),
+            new LongDimensionSchema("dimLong"),
+            new FloatDimensionSchema("dimFloat")
+        )
+    );
+    final List<String> columns = Arrays.asList("time", "dim", "dimLong", "dimFloat", "val");
+    final IndexIngestionSpec ingestionSpec;
+    if (useInputFormatApi) {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          timestampSpec,
+          dimensionsSpec,
+          new CsvInputFormat(columns, null, null, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.HOUR, Collections.singletonList(Intervals.of("2014/2015"))),
+          tuningConfig,
+          false,
+          false
+      );
+    } else {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          new CSVParseSpec(timestampSpec, dimensionsSpec, null, columns, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.HOUR, Collections.singletonList(Intervals.of("2014/2015"))),
+          tuningConfig,
+          false,
+          false
+      );
+    }
+
+    IndexTask indexTask = new IndexTask(
+        null,
+        null,
+        ingestionSpec,
+        null
+    );
+
+    TaskStatus status = runTask(indexTask).lhs;
+    Assert.assertEquals(TaskState.FAILED, status.getStatusCode());
+  }
+
+  @Test
+  public void testDynamicPartitioningFailureDueToIntervalCount() throws Exception
+  {
+    final File tmpDir = temporaryFolder.newFolder();
+
+    final File tmpFile = File.createTempFile("druid", "index", tmpDir);
+
+    try (BufferedWriter writer = Files.newWriter(tmpFile, StandardCharsets.UTF_8)) {
+      writer.write("time,dim,dimLong,dimFloat,val\n");
+      writer.write("2014-01-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-02-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-03-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+      writer.write("2014-04-01T00:00:10Z,a,2,3.0,1\n"); // valid row
+    }
+
+    // Allow up to 3 parse exceptions, and save up to 2 parse exceptions
+    final IndexTuningConfig tuningConfig = new IndexTuningConfig(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        new DynamicPartitionsSpec(null, null),
+        INDEX_SPEC,
+        null,
+        null,
+        false,
+        false,
+        null,
+        null,
+        null,
+        true,
+        2,
+        5,
+        null,
+        3,
+        null
+    );
+
+    final TimestampSpec timestampSpec = new TimestampSpec("time", "auto", null);
+    final DimensionsSpec dimensionsSpec = new DimensionsSpec(
+        Arrays.asList(
+            new StringDimensionSchema("dim"),
+            new LongDimensionSchema("dimLong"),
+            new FloatDimensionSchema("dimFloat")
+        )
+    );
+    final List<String> columns = Arrays.asList("time", "dim", "dimLong", "dimFloat", "val");
+    final IndexIngestionSpec ingestionSpec;
+    if (useInputFormatApi) {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          timestampSpec,
+          dimensionsSpec,
+          new CsvInputFormat(columns, null, null, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.HOUR, null),
+          tuningConfig,
+          false,
+          false
+      );
+    } else {
+      ingestionSpec = createIngestionSpec(
+          jsonMapper,
+          tmpDir,
+          new CSVParseSpec(timestampSpec, dimensionsSpec, null, columns, true, 0),
+          null,
+          new UniformGranularitySpec(Granularities.MONTH, Granularities.HOUR, null),
+          tuningConfig,
+          false,
+          false
+      );
+    }
+
+    IndexTask indexTask = new IndexTask(
+        null,
+        null,
+        ingestionSpec,
+        null
+    );
+
+    TaskStatus status = runTask(indexTask).lhs;
+    Assert.assertEquals(TaskState.FAILED, status.getStatusCode());
   }
 
   @Test
@@ -2178,7 +2552,9 @@ public class IndexTaskTest extends IngestionTestBase
         null,
         null,
         forceGuaranteedRollup,
-        true
+        true,
+        null,
+        null
     );
   }
 
@@ -2194,7 +2570,9 @@ public class IndexTaskTest extends IngestionTestBase
         null,
         partitionsSpec,
         forceGuaranteedRollup,
-        true
+        true,
+        null,
+        null
     );
   }
 
@@ -2205,7 +2583,9 @@ public class IndexTaskTest extends IngestionTestBase
       @Nullable Long maxTotalRows,
       @Nullable PartitionsSpec partitionsSpec,
       boolean forceGuaranteedRollup,
-      boolean reportParseException
+      boolean reportParseException,
+      @Nullable Integer maxSegmentIntervalsPermitted,
+      @Nullable Integer maxAggregateSegmentsPermitted
   )
   {
     return new IndexTuningConfig(
@@ -2231,7 +2611,9 @@ public class IndexTaskTest extends IngestionTestBase
         null,
         null,
         1,
-        null
+        null,
+        maxSegmentIntervalsPermitted,
+        maxAggregateSegmentsPermitted
     );
   }
 

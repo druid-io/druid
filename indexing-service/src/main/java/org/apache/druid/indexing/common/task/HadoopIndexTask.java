@@ -361,6 +361,54 @@ public class HadoopIndexTask extends HadoopTask implements ChatHandler
             errorMsg
         );
       }
+
+      // Only enforce maxSegmentIntervalsPermitted if we dynamically discover populated intervals via mapreduce
+      // Abort task if number of intervals is greater than limit specified in TuningConfig.
+      if (indexerSchema.getTuningConfig().getPartitionsSpec().needsDeterminePartitions(true)
+          && indexerSchema.getDataSchema().getGranularitySpec().inputIntervals().size()
+             > indexerSchema.getTuningConfig().getMaxSegmentIntervalsPermitted()) {
+
+        errorMsg = "HadoopIndexTask Failed! The number of segment intervals ["
+                   + indexerSchema.getDataSchema().getGranularitySpec().inputIntervals().size()
+                   + "] is greater than the number allowed ["
+                   + indexerSchema.getTuningConfig().getMaxSegmentIntervalsPermitted()
+                   + "], as specified in TuningConfig.";
+        log.error(errorMsg);
+
+        // Change state to completed to gracefulShutdown does not try to shutdown a Hadoop job that isn't running
+        ingestionState = IngestionState.COMPLETED;
+
+        toolbox.getTaskReportFileWriter().write(getId(), getTaskCompletionReports());
+        return TaskStatus.failure(
+            getId(),
+            errorMsg
+        );
+      }
+
+      // Only enforce maxAggregateSegmentsPermitted if we are going to dynamically determine partition
+      // counts via MapReduce.
+      if (indexerSchema.getTuningConfig().getPartitionsSpec().needsDeterminePartitions(true)) {
+        // Gather the aggregate number of shards in the intervals being indexed
+        int aggregateBuckets = indexerSchema.getTuningConfig().getShardSpecs().size();
+        // Abort task if aggregate number of segments is greater than limit specified in TuningConfig.
+        if (aggregateBuckets > indexerSchema.getTuningConfig().getMaxAggregateSegmentsPermitted()) {
+          errorMsg = "HadoopIndexTask Failed! The aggregate number of segments that will be created ["
+                     + aggregateBuckets
+                     + "] is greater than the number allowed ["
+                     + indexerSchema.getTuningConfig().getMaxAggregateSegmentsPermitted()
+                     + "], as specified in the tuning config";
+          log.error(errorMsg);
+
+          // Change state to completed to gracefulShutdown does not try to shutdown a Hadoop job that isn't running
+          ingestionState = IngestionState.COMPLETED;
+
+          toolbox.getTaskReportFileWriter().write(getId(), getTaskCompletionReports());
+          return TaskStatus.failure(
+              getId(),
+              errorMsg
+          );
+        }
+      }
     }
     catch (Exception e) {
       throw new RuntimeException(e);

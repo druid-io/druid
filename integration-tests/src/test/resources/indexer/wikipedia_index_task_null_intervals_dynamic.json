@@ -1,27 +1,8 @@
 {
-  "type": "index_parallel",
+  "type": "index",
   "spec": {
     "dataSchema": {
       "dataSource": "%%DATASOURCE%%",
-      "timestampSpec": {
-        "column": "timestamp"
-      },
-      "dimensionsSpec": {
-        "dimensions": [
-          "page",
-          {"type": "string", "name": "language", "createBitmapIndex": false},
-          "user",
-          "unpatrolled",
-          "newPage",
-          "robot",
-          "anonymous",
-          "namespace",
-          "continent",
-          "country",
-          "region",
-          "city"
-        ]
-      },
       "metricsSpec": [
         {
           "type": "count",
@@ -61,29 +42,50 @@
       "granularitySpec": {
         "segmentGranularity": "DAY",
         "queryGranularity": "second",
-        "intervals" : [ "2013-08-31/2013-09-02" ]
+        "intervals" : null
+      },
+      "parser": {
+        "parseSpec": {
+          "format" : "json",
+          "timestampSpec": {
+            "column": "timestamp"
+          },
+          "dimensionsSpec": {
+            "dimensions": [
+              "page",
+              {"type": "string", "name": "language", "createBitmapIndex": false},
+              "user",
+              "unpatrolled",
+              "newPage",
+              "robot",
+              "anonymous",
+              "namespace",
+              "continent",
+              "country",
+              "region",
+              "city"
+            ]
+          }
+        }
       }
     },
     "ioConfig": {
-      "type": "index_parallel",
-      "inputSource": {
+      "type": "index",
+      "firehose": {
         "type": "local",
-        "filter" : "%%INPUT_SOURCE_FILTER%%",
-        "baseDir": "%%INPUT_SOURCE_BASE_DIR%%"
-      },
-      "appendToExisting": %%APPEND_TO_EXISTING%%,
-      "dropExisting": %%DROP_EXISTING%%,
-      "inputFormat": %%INPUT_FORMAT%%
+        "baseDir": "/resources/data/batch_index/json",
+        "filter": "wikipedia_index_data*"
+      }
     },
     "tuningConfig": {
-      "type": "index_parallel",
-      "maxNumConcurrentSubTasks": 4,
-      "splitHintSpec": {
-        "type": "maxSize",
-        "maxNumFiles": 1
-      },
+      "type": "index",
       "forceGuaranteedRollup": %%FORCE_GUARANTEED_ROLLUP%%,
-      "partitionsSpec": %%PARTITIONS_SPEC%%
+      "maxSegmentIntervalsPermitted": %%MAX_SEGMENT_INTERVALS_PERMITTED%%,
+      "maxAggregateSegmentsPermitted": %%MAX_AGGREGATE_SEGMENTS_PERMITTED%%,
+      "partitionsSpec": {
+        "type": "dynamic",
+        "maxRowsPerSegment": 3
+      }
     }
   }
 }

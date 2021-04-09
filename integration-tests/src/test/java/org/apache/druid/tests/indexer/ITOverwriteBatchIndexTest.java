@@ -150,6 +150,7 @@ public class ITOverwriteBatchIndexTest extends AbstractITBatchIndexTest
         null,
         false,
         false,
+        true,
         true
     );
   }

@@ -1022,6 +1022,8 @@ useCombiner
 useExplicitVersion
 useNewAggs
 useYarnRMJobStatusFallback
+maxSegmentIntervalsPermitted
+maxAggregateSegmentsPermitted
 workingPath
 z.example.com
  - ../docs/ingestion/native-batch.md

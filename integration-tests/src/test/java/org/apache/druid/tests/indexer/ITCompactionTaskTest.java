@@ -236,6 +236,10 @@ public class ITCompactionTaskTest extends AbstractIndexerTest
           newSegmentGranularity.name()
       );
     }
+    template = StringUtils.replace(template, "%%MAX_SEGMENT_INTERVALS_PERMITTED%%", jsonMapper.writeValueAsString(Integer.MAX_VALUE));
+    template = StringUtils.replace(template, "%%MAX_AGGREGATE_SEGMENTS_PERMITTED%%", jsonMapper.writeValueAsString(Integer.MAX_VALUE));
+    template = StringUtils.replace(template, "%%FORCE_GUARANTEED_ROLLUP%%", jsonMapper.writeValueAsString(false));
+
     final String taskID = indexer.submitTask(template);
     LOG.info("TaskID for compaction task %s", taskID);
     indexer.waitUntilTaskCompletes(taskID);

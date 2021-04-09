@@ -19,18 +19,24 @@
 
 package org.apache.druid.tests.indexer;
 
+import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.testing.guice.DruidTestModuleFactory;
 import org.apache.druid.tests.TestNGGroup;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
 
 import java.io.Closeable;
+import java.util.function.Function;
 
 @Test(groups = {TestNGGroup.BATCH_INDEX, TestNGGroup.QUICKSTART_COMPATIBLE})
 @Guice(moduleFactory = DruidTestModuleFactory.class)
 public class ITIndexerTest extends AbstractITBatchIndexTest
 {
   private static final String INDEX_TASK = "/indexer/wikipedia_index_task.json";
+  private static final String INDEX_TASK_HASHED_PARTITIONING = "/indexer/wikipedia_index_task_hashed_partitioning.json";
+  private static final String INDEX_TASK_NULL_INTERVALS = "/indexer/wikipedia_index_task_null_intervals.json";
+  private static final String INDEX_TASK_NULL_INTERVALS_DYNAMIC_PARTITIONING = "/indexer/wikipedia_index_task_null_intervals_dynamic.json";
   private static final String INDEX_QUERIES_RESOURCE = "/indexer/wikipedia_index_queries.json";
   private static final String INDEX_DATASOURCE = "wikipedia_index_test";
 
@@ -57,6 +63,31 @@ public class ITIndexerTest extends AbstractITBatchIndexTest
   private static final String INDEX_WITH_MERGE_COLUMN_LIMIT_TASK = "/indexer/wikipedia_index_with_merge_column_limit_task.json";
   private static final String INDEX_WITH_MERGE_COLUMN_LIMIT_DATASOURCE = "wikipedia_index_with_merge_column_limit_test";
 
+  @DataProvider
+  public static Object[][] failureResourcesZeroMaxThenMaxZero()
+  {
+    return new Object[][]{
+        {0, Integer.MAX_VALUE},
+        {Integer.MAX_VALUE, 0}
+    };
+  }
+
+  @DataProvider
+  public static Object[][] failureResourcesMaxZero()
+  {
+    return new Object[][]{
+        {Integer.MAX_VALUE, 0}
+    };
+  }
+
+  @DataProvider
+  public static Object[][] failureResourcesZeroMax()
+  {
+    return new Object[][]{
+        {0, Integer.MAX_VALUE}
+    };
+  }
+
   @Test
   public void testIndexData() throws Exception
   {
@@ -67,11 +98,38 @@ public class ITIndexerTest extends AbstractITBatchIndexTest
         final Closeable ignored2 = unloader(reindexDatasource + config.getExtraDatasourceNameSuffix());
         final Closeable ignored3 = unloader(reindexDatasourceWithDruidInputSource + config.getExtraDatasourceNameSuffix())
     ) {
+      final Function<String, String> transform = spec -> {
+        try {
+          spec = StringUtils.replace(
+              spec,
+              "%%MAX_SEGMENT_INTERVALS_PERMITTED%%",
+              jsonMapper.writeValueAsString(Integer.MAX_VALUE)
+          );
+          spec = StringUtils.replace(
+              spec,
+              "%%MAX_AGGREGATE_SEGMENTS_PERMITTED%%",
+              jsonMapper.writeValueAsString(Integer.MAX_VALUE)
+          );
+          spec = StringUtils.replace(
+              spec,
+              "%%FORCE_GUARANTEED_ROLLUP%%",
+              jsonMapper.writeValueAsString(false)
+          );
+
+          return spec;
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      };
+
       doIndexTest(
           INDEX_DATASOURCE,
           INDEX_TASK,
+          transform,
           INDEX_QUERIES_RESOURCE,
           false,
+          true,
           true,
           true
       );
@@ -106,6 +164,7 @@ public class ITIndexerTest extends AbstractITBatchIndexTest
           INDEX_WITH_TIMESTAMP_QUERIES_RESOURCE,
           false,
           true,
+          true,
           true
       );
       doReindexTest(
@@ -139,6 +198,7 @@ public class ITIndexerTest extends AbstractITBatchIndexTest
           MERGE_INDEX_QUERIES_RESOURCE,
           false,
           true,
+          true,
           true
       );
       doReindexTest(
@@ -169,8 +229,150 @@ public class ITIndexerTest extends AbstractITBatchIndexTest
           INDEX_QUERIES_RESOURCE,
           false,
           true,
+          true,
           true
       );
     }
+  }
+
+  /**
+   * Test that ingestion properly fails due to tuningConfig paramaters. Both maxSegmentIntervalsPermitted and
+   * maxAggregateSegmentsPermitted are tested for ingestion with null intervals and hashed partitioning.
+   *
+   * @param resourceArray tuningConfig values to populate ingestion spec.
+   * @throws Exception
+   */
+  @Test(dataProvider = "failureResourcesZeroMaxThenMaxZero")
+  public void testHashedPartitioningNullIntervalsIndexFailure(int[] resourceArray) throws Exception
+  {
+    final Function<String, String> transform = spec -> {
+      try {
+        spec = StringUtils.replace(
+            spec,
+            "%%MAX_SEGMENT_INTERVALS_PERMITTED%%",
+            jsonMapper.writeValueAsString(resourceArray[0])
+        );
+        spec = StringUtils.replace(
+            spec,
+            "%%MAX_AGGREGATE_SEGMENTS_PERMITTED%%",
+            jsonMapper.writeValueAsString(resourceArray[1])
+        );
+        spec = StringUtils.replace(
+            spec,
+            "%%FORCE_GUARANTEED_ROLLUP%%",
+            jsonMapper.writeValueAsString(true)
+        );
+
+        return spec;
+      }
+      catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+
+    doIndexTest(
+        INDEX_DATASOURCE,
+        INDEX_TASK_NULL_INTERVALS,
+        transform,
+        INDEX_QUERIES_RESOURCE,
+        false,
+        false,
+        false,
+        false
+    );
+  }
+
+  /**
+   * Test that ingestion properly fails due to tuningConfig paramaters. maxAggregateSegmentsPermitted is tested for
+   * ingestion with non-null intervals and hashed partitioning.
+   *
+   * @param resourceArray tuningConfig values to populate ingestion spec.
+   * @throws Exception
+   */
+  @Test(dataProvider = "failureResourcesMaxZero")
+  public void testHashedPartitioningNonNullIntervalsIndexFailure(int[] resourceArray) throws Exception
+  {
+    final Function<String, String> transform = spec -> {
+      try {
+        spec = StringUtils.replace(
+            spec,
+            "%%MAX_SEGMENT_INTERVALS_PERMITTED%%",
+            jsonMapper.writeValueAsString(resourceArray[0])
+        );
+        spec = StringUtils.replace(
+            spec,
+            "%%MAX_AGGREGATE_SEGMENTS_PERMITTED%%",
+            jsonMapper.writeValueAsString(resourceArray[1])
+        );
+        spec = StringUtils.replace(
+            spec,
+            "%%FORCE_GUARANTEED_ROLLUP%%",
+            jsonMapper.writeValueAsString(true)
+        );
+
+        return spec;
+      }
+      catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+
+    doIndexTest(
+        INDEX_DATASOURCE,
+        INDEX_TASK_HASHED_PARTITIONING,
+        transform,
+        INDEX_QUERIES_RESOURCE,
+        false,
+        false,
+        false,
+        false
+    );
+  }
+
+  /**
+   * Test that ingestion properly fails due to tuningConfig paramaters. maxSegmentIntervalsPermitted is tested for
+   * ingestion with null intervals and dynamic partitioning.
+   *
+   * @param resourceArray tuningConfig values to populate ingestion spec.
+   * @throws Exception
+   */
+  @Test(dataProvider = "failureResourcesZeroMax")
+  public void testDynamicPartitioningNullIntervalsIndexFailure(int[] resourceArray) throws Exception
+  {
+    final Function<String, String> transform = spec -> {
+      try {
+        spec = StringUtils.replace(
+            spec,
+            "%%MAX_SEGMENT_INTERVALS_PERMITTED%%",
+            jsonMapper.writeValueAsString(resourceArray[0])
+        );
+        spec = StringUtils.replace(
+            spec,
+            "%%MAX_AGGREGATE_SEGMENTS_PERMITTED%%",
+            jsonMapper.writeValueAsString(resourceArray[1])
+        );
+        spec = StringUtils.replace(
+            spec,
+            "%%FORCE_GUARANTEED_ROLLUP%%",
+            jsonMapper.writeValueAsString(false)
+        );
+
+        return spec;
+      }
+      catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+
+    doIndexTest(
+        INDEX_DATASOURCE,
+        INDEX_TASK_NULL_INTERVALS_DYNAMIC_PARTITIONING,
+        transform,
+        INDEX_QUERIES_RESOURCE,
+        false,
+        false,
+        false,
+        false
+    );
   }
 }

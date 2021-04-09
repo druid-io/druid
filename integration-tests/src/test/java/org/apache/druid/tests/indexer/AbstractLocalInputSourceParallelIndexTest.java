@@ -99,6 +99,7 @@ public abstract class AbstractLocalInputSourceParallelIndexTest extends Abstract
           INDEX_QUERIES_RESOURCE,
           false,
           true,
+          true,
           true
       );
     }
