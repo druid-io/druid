@@ -84,18 +84,6 @@ public class HllSketchMergeBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public float getFloat(final ByteBuffer buf, final int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public long getLong(final ByteBuffer buf, final int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
   public void inspectRuntimeShape(RuntimeShapeInspector inspector)
   {
     inspector.visit("selector", selector);

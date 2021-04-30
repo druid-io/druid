@@ -75,18 +75,6 @@ public class HllSketchBuildBufferAggregator implements BufferAggregator
     helper.clear();
   }
 
-  @Override
-  public float getFloat(final ByteBuffer buf, final int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public long getLong(final ByteBuffer buf, final int position)
-  {
-    throw new UnsupportedOperationException("Not implemented");
-  }
-
   /**
    * In very rare cases sketches can exceed given memory, request on-heap memory and move there.
    * We need to identify such sketches and reuse the same objects as opposed to wrapping new memory regions.

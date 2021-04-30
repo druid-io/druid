@@ -392,8 +392,7 @@ public class GroupByQueryRunnerTest extends InitializedNullHandlingTest
         new GroupByStrategyV1(
             configSupplier,
             new GroupByQueryEngine(configSupplier, bufferPool),
-            QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-            bufferPool
+            QueryRunnerTestHelper.NOOP_QUERYWATCHER
         ),
         new GroupByStrategyV2(
             processingConfig,
@@ -10899,7 +10898,7 @@ public class GroupByQueryRunnerTest extends InitializedNullHandlingTest
         (query1, future) -> {
           return;
         },
-        ImmutableList.<QueryRunner<ResultRow>>of(runner, runner)
+        ImmutableList.of(runner, runner)
     );
 
     QueryRunner<ResultRow> mergingRunner = factory.mergeRunners(Execs.directExecutor(), ImmutableList.of(ceqr));
