@@ -33,10 +33,9 @@ import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.druid.java.util.common.ISE;
 import org.apache.druid.java.util.common.StringUtils;
 import org.apache.druid.sql.calcite.aggregation.SqlAggregator;
-import org.apache.druid.sql.calcite.aggregation.builtin.ApproxCountDistinctSqlAggregator;
 import org.apache.druid.sql.calcite.aggregation.builtin.ArraySqlAggregator;
 import org.apache.druid.sql.calcite.aggregation.builtin.AvgSqlAggregator;
-import org.apache.druid.sql.calcite.aggregation.builtin.CountSqlAggregator;
+import org.apache.druid.sql.calcite.aggregation.builtin.BuiltinApproxCountDistinctSqlAggregator;
 import org.apache.druid.sql.calcite.aggregation.builtin.EarliestLatestAnySqlAggregator;
 import org.apache.druid.sql.calcite.aggregation.builtin.GroupingSqlAggregator;
 import org.apache.druid.sql.calcite.aggregation.builtin.MaxSqlAggregator;
@@ -121,11 +120,11 @@ import java.util.stream.Collectors;
 
 public class DruidOperatorTable implements SqlOperatorTable
 {
+  // COUNT and APPROX_COUNT_DISTINCT are not here because they are added by SqlAggregationModule.
   private static final List<SqlAggregator> STANDARD_AGGREGATORS =
       ImmutableList.<SqlAggregator>builder()
-          .add(new ApproxCountDistinctSqlAggregator())
           .add(new AvgSqlAggregator())
-          .add(new CountSqlAggregator())
+          .add(new BuiltinApproxCountDistinctSqlAggregator())
           .add(EarliestLatestAnySqlAggregator.EARLIEST)
           .add(EarliestLatestAnySqlAggregator.LATEST)
           .add(EarliestLatestAnySqlAggregator.ANY_VALUE)
@@ -136,7 +135,6 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new GroupingSqlAggregator())
           .add(new ArraySqlAggregator())
           .build();
-
 
   // STRLEN has so many aliases.
   private static final SqlOperatorConversion CHARACTER_LENGTH_CONVERSION = new DirectOperatorConversion(

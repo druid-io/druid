@@ -1652,6 +1652,7 @@ GiB
 5MB
 8u60
 Autoscaler
+APPROX_COUNT_DISTINCT_BUILTIN
 AvaticaConnectionBalancer
 EventReceiverFirehose
 File.getFreeSpace
