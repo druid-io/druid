@@ -459,7 +459,8 @@ public class AbstractParallelIndexSupervisorTaskTest extends IngestionTestBase
           (Function<TaskStatus, TaskStatus>) status -> {
             shutdownTask(task);
             return status;
-          }
+          },
+          Execs.directExecutor()
       );
       return cleanupFuture;
     }
