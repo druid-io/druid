@@ -61,6 +61,9 @@ Available Metrics
 |`query/timeout/count`|number of timed out queries.|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`sqlQuery/time`|Milliseconds taken to complete a SQL query.|id, nativeQueryIds, dataSource, remoteAddress, success.|< 1s|
 |`sqlQuery/bytes`|number of bytes returned in SQL query response.|id, nativeQueryIds, dataSource, remoteAddress, success.| |
+|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |configuration value of druid.processing.numMergeBuffers|
+|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |<= query/mergeBufferMaxNum|
+|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. ||
 
 ### Historical
 
@@ -77,6 +80,12 @@ Available Metrics
 |`query/failed/count`|number of failed queries|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`query/interrupted/count`|number of queries interrupted due to cancellation.|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`query/timeout/count`|number of timed out queries.|This metric is only available if the QueryCountStatsMonitor module is included.||
+|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |configuration value of druid.processing.numMergeBuffers|
+|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |<= query/mergeBufferMaxNum|
+|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. ||
+|`thread/maxCount`|Number of Druid threads.| |configuration value of druid.processing.numThreads|
+|`thread/active`|Number of active Druid threads. | |< thread/maxCount |
+|`thread/task/pending`|Number of pending tasks in threadpool. | ||
 
 ### Real-time
 
@@ -90,6 +99,12 @@ Available Metrics
 |`query/failed/count`|number of failed queries|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`query/interrupted/count`|number of queries interrupted due to cancellation.|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`query/timeout/count`|number of timed out queries.|This metric is only available if the QueryCountStatsMonitor module is included.||
+|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |configuration value of druid.processing.numMergeBuffers|
+|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |<= query/mergeBufferMaxNum|
+|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. ||
+|`thread/maxCount`|Number of Druid threads.| |configuration value of druid.processing.numThreads|
+|`thread/active`|Number of active Druid threads. | |< thread/maxCount |
+|`thread/task/pending`|Number of pending tasks in threadpool. | ||
 
 ### Jetty
 
@@ -169,6 +184,10 @@ These metrics are only available if the RealtimeMetricsMonitor is included in th
 |`ingest/events/duplicate`|Number of events rejected because the events are duplicated.|dataSource, taskId, taskType.|0|
 |`ingest/events/processed`|Number of events successfully processed per emission period.|dataSource, taskId, taskType.|Equal to your # of events per emission period.|
 |`ingest/rows/output`|Number of Druid rows persisted.|dataSource, taskId, taskType.|Your # of events with rollup.|
+|`ingest/rows/inMemory`|Number of Druid rows currently in memory.|dataSource.|Your # of events with rollup that are currently in memory.|
+|`ingest/rows/MaxInMemory`|Max number of Druid rows configured to be in memory before triggering persistence.|dataSource.|maxRowsInMemory in tuningConfig.|
+|`ingest/bytes/inMemory`|Number of bytes of Druid rows currently in memory.|dataSource.|Bytes of your events with rollup that are currently in memory.|
+|`ingest/bytes/maxInMemory`|Max number of bytes of Druid rows configured to be in memory before triggering persistence.|dataSource.|maxBytesInMemory in tuningConfig.|
 |`ingest/persists/count`|Number of times persist occurred.|dataSource, taskId, taskType.|Depends on configuration.|
 |`ingest/persists/time`|Milliseconds spent doing intermediate persist.|dataSource, taskId, taskType.|Depends on configuration. Generally a few minutes at most.|
 |`ingest/persists/cpu`|Cpu time in Nanoseconds spent on doing intermediate persist.|dataSource, taskId, taskType.|Depends on configuration. Generally a few minutes at most.|
