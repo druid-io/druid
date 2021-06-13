@@ -139,7 +139,7 @@ if [ -n "$DRUID_MAXNEWSIZE" ]; then setJavaKey ${SERVICE} -XX:MaxNewSize -XX:Max
 if [ -n "$DRUID_NEWSIZE" ]; then setJavaKey ${SERVICE} -XX:NewSize -XX:NewSize=${DRUID_NEWSIZE}; fi
 if [ -n "$DRUID_MAXDIRECTMEMORYSIZE" ]; then setJavaKey ${SERVICE} -XX:MaxDirectMemorySize -XX:MaxDirectMemorySize=${DRUID_MAXDIRECTMEMORYSIZE}; fi
 
-JAVA_OPTS="$JAVA_OPTS $(cat $SERVICE_CONF_DIR/jvm.config | xargs)"
+JAVA_OPTS="$(cat $SERVICE_CONF_DIR/jvm.config | xargs) $JAVA_OPTS"
 
 if [ -n "$DRUID_LOG_LEVEL" ]
 then
