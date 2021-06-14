@@ -475,8 +475,8 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       case 'publish':
         return Boolean(
           cacheRows &&
-            deepGet(spec, 'spec.dataSchema.timestampSpec') &&
-            deepGet(spec, 'spec.dataSchema.dimensionsSpec'),
+          deepGet(spec, 'spec.dataSchema.timestampSpec') &&
+          deepGet(spec, 'spec.dataSchema.dimensionsSpec'),
         );
 
       default:
@@ -755,6 +755,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
             {this.renderIngestionCard('kafka')}
             {this.renderIngestionCard('kinesis')}
             {this.renderIngestionCard('azure-event-hubs')}
+            {this.renderIngestionCard('pulsar')}
             {this.renderIngestionCard('index_parallel:s3')}
             {this.renderIngestionCard('index_parallel:azure')}
             {this.renderIngestionCard('index_parallel:google')}
@@ -854,6 +855,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       case 'kinesis':
         return <p>Load streaming data in real-time from Amazon Kinesis.</p>;
 
+      case 'pulsar':
+        return <p>Load streaming data in real-time from Apache Pulsar.</p>
+
       case 'azure-event-hubs':
         return (
           <>
@@ -913,6 +917,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       case 'index_parallel:hdfs':
       case 'kafka':
       case 'kinesis':
+      case 'pulsar':
         return (
           <FormGroup>
             <Button
@@ -1148,11 +1153,11 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
               value={
                 inputData.length
                   ? (inputData.every(l => !l.parsed)
-                      ? inputData.map(showBlankLine)
-                      : druidSource
+                    ? inputData.map(showBlankLine)
+                    : druidSource
                       ? inputData.map(showDruidLine)
                       : inputData.map(showRawLine)
-                    ).join('\n')
+                  ).join('\n')
                   : 'No data returned from sampler'
               }
             />
@@ -1208,7 +1213,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
               </Callout>
             </FormGroup>
           )}
-          {oneOf(specType, 'kafka', 'kinesis') && (
+          {oneOf(specType, 'kafka', 'kinesis', 'pulsar') && (
             <FormGroup label="Where should the data be sampled from?">
               <HTMLSelect
                 value={sampleStrategy}
@@ -1586,9 +1591,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         timestampQueryState: initRun
           ? QueryState.INIT
           : new QueryState({
-              error: new Error('must complete parse step'),
-              lastData: timestampQueryState.getSomeData(),
-            }),
+            error: new Error('must complete parse step'),
+            lastData: timestampQueryState.getSomeData(),
+          }),
       }));
       return;
     }
@@ -1781,9 +1786,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         transformQueryState: initRun
           ? QueryState.INIT
           : new QueryState({
-              error: new Error('must complete parse step'),
-              lastData: transformQueryState.getSomeData(),
-            }),
+            error: new Error('must complete parse step'),
+            lastData: transformQueryState.getSomeData(),
+          }),
       }));
       return;
     }
@@ -2004,9 +2009,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         filterQueryState: initRun
           ? QueryState.INIT
           : new QueryState({
-              error: new Error('must complete parse step'),
-              lastData: filterQueryState.getSomeData(),
-            }),
+            error: new Error('must complete parse step'),
+            lastData: filterQueryState.getSomeData(),
+          }),
       }));
       return;
     }
@@ -2216,9 +2221,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
         schemaQueryState: initRun
           ? QueryState.INIT
           : new QueryState({
-              error: new Error('must complete parse step'),
-              lastData: schemaQueryState.getSomeData(),
-            }),
+            error: new Error('must complete parse step'),
+            lastData: schemaQueryState.getSomeData(),
+          }),
       }));
       return;
     }
@@ -2558,9 +2563,8 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
           );
         }}
         confirmButtonText={`Yes - ${autoDetect ? 'auto detect' : 'explicitly set'} columns`}
-        successText={`Dimension mode changes to ${
-          autoDetect ? 'auto detect' : 'specific list'
-        }. Schema has been updated.`}
+        successText={`Dimension mode changes to ${autoDetect ? 'auto detect' : 'specific list'
+          }. Schema has been updated.`}
         failText="Could change dimension mode"
         intent={Intent.WARNING}
         onClose={() => this.setState({ newDimensionMode: undefined })}
@@ -2588,7 +2592,7 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
     return (
       <div className="edit-controls">
         <FormGroup label="Name">
-          <InputGroup value={selectedAutoDimension} onChange={() => {}} readOnly />
+          <InputGroup value={selectedAutoDimension} onChange={() => { }} readOnly />
         </FormGroup>
         <FormGroup>
           <Button
@@ -2643,9 +2647,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
       const specWithoutDimension =
         dimensionMode === 'specific'
           ? deepDelete(
-              spec,
-              `spec.dataSchema.dimensionsSpec.dimensions.${selectedDimensionSpecIndex}`,
-            )
+            spec,
+            `spec.dataSchema.dimensionsSpec.dimensions.${selectedDimensionSpecIndex}`,
+          )
           : spec;
 
       const specWithMetric = deepSet(specWithoutDimension, `spec.dataSchema.metricsSpec.[append]`, {
@@ -2974,9 +2978,9 @@ export class LoadDataView extends React.PureComponent<LoadDataViewProps, LoadDat
               <div>
                 {ioConfig.inputSource
                   ? `No specific tuning configs for inputSource of type '${deepGet(
-                      ioConfig,
-                      'inputSource.type',
-                    )}'.`
+                    ioConfig,
+                    'inputSource.type',
+                  )}'.`
                   : `No specific tuning configs.`}
               </div>
             )
