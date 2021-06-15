@@ -960,7 +960,8 @@ public class KafkaIndexTaskTest extends SeekableStreamIndexTaskTestBase
           Thread.sleep(1000);
           return staleReplica;
         }),
-        (AsyncFunction<Task, TaskStatus>) this::runTask
+        (AsyncFunction<Task, TaskStatus>) this::runTask,
+        Execs.directExecutor()
     );
 
     while (normalReplica.getRunner().getStatus() != Status.PAUSED) {

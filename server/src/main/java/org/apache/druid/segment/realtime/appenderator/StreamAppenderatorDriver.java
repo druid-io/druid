@@ -283,7 +283,8 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
             sam,
             publisher,
             java.util.function.Function.identity()
-        )
+        ),
+        Execs.directExecutor()
     );
     return Futures.transform(
         publishFuture,
@@ -292,7 +293,8 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
             sequenceNames.forEach(segments::remove);
           }
           return sam;
-        }
+        },
+        Execs.directExecutor()
     );
   }
 
@@ -372,7 +374,8 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
                       numRemainingHandoffSegments.decrementAndGet();
                       resultFuture.setException(e);
                     }
-                  }
+                  },
+                  Execs.directExecutor()
               );
             }
         );
@@ -390,7 +393,8 @@ public class StreamAppenderatorDriver extends BaseAppenderatorDriver
   {
     return Futures.transform(
         publish(publisher, committer, sequenceNames),
-        (AsyncFunction<SegmentsAndCommitMetadata, SegmentsAndCommitMetadata>) this::registerHandoff
+        (AsyncFunction<SegmentsAndCommitMetadata, SegmentsAndCommitMetadata>) this::registerHandoff,
+        Execs.directExecutor()
     );
   }
 
