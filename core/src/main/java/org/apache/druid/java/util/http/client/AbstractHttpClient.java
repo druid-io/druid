@@ -21,6 +21,7 @@ package org.apache.druid.java.util.http.client;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.druid.java.util.http.client.response.HttpResponseHandler;
+import org.joda.time.Duration;
 
 public abstract class AbstractHttpClient implements HttpClient
 {
@@ -30,6 +31,15 @@ public abstract class AbstractHttpClient implements HttpClient
       final HttpResponseHandler<Intermediate, Final> handler
   )
   {
-    return go(request, handler, null);
+    return go(request, handler, (Duration) null);
   }
+
+  @Override
+  public <Intermediate, Final> ListenableFuture<Final> go(Request request,
+      HttpResponseHandler<Intermediate, Final> handler, java.time.Duration readTimeout)
+  {
+    final Duration d = (readTimeout == null) ? null : new Duration(readTimeout.toMillis());
+    return go(request, handler, d);
+  }
+
 }
