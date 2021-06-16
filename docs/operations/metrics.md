@@ -61,9 +61,9 @@ Available Metrics
 |`query/timeout/count`|number of timed out queries.|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`sqlQuery/time`|Milliseconds taken to complete a SQL query.|id, nativeQueryIds, dataSource, remoteAddress, success.|< 1s|
 |`sqlQuery/bytes`|number of bytes returned in SQL query response.|id, nativeQueryIds, dataSource, remoteAddress, success.| |
-|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |configuration value of druid.processing.numMergeBuffers|
-|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |<= query/mergeBufferMaxNum|
-|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. ||
+|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. |configuration value of `druid.processing.numMergeBuffers`|
+|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. |<= `query/mergeBufferMaxNum`|
+|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. ||
 
 ### Historical
 
@@ -80,12 +80,12 @@ Available Metrics
 |`query/failed/count`|number of failed queries|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`query/interrupted/count`|number of queries interrupted due to cancellation.|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`query/timeout/count`|number of timed out queries.|This metric is only available if the QueryCountStatsMonitor module is included.||
-|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |configuration value of druid.processing.numMergeBuffers|
-|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |<= query/mergeBufferMaxNum|
-|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. ||
-|`thread/maxCount`|Number of Druid threads.| |configuration value of druid.processing.numThreads|
-|`thread/active`|Number of active Druid threads. | |< thread/maxCount |
-|`thread/task/pending`|Number of pending tasks in threadpool. | ||
+|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. |configuration value of `druid.processing.numMergeBuffers`|
+|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. |<= `query/mergeBufferMaxNum`|
+|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. ||
+|`thread/maxCount`|Number of Druid threads.| |configuration value of `druid.processing.numThreads`|
+|`thread/active`|Number of active Druid threads. | |< `thread/maxCount` |
+|`thread/task/pending`|Number of pending tasks in thread pool. | ||
 
 ### Real-time
 
@@ -96,15 +96,15 @@ Available Metrics
 |`segment/scan/pending`|Number of segments in queue waiting to be scanned.||Close to 0|
 |`query/count`|number of total queries|This metric is only available if the QueryCountStatsMonitor module is included.||
 |`query/success/count`|number of queries successfully processed|This metric is only available if the QueryCountStatsMonitor module is included.||
-|`query/failed/count`|number of failed queries|This metric is only available if the QueryCountStatsMonitor module is included.||
-|`query/interrupted/count`|number of queries interrupted due to cancellation.|This metric is only available if the QueryCountStatsMonitor module is included.||
-|`query/timeout/count`|number of timed out queries.|This metric is only available if the QueryCountStatsMonitor module is included.||
-|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |configuration value of druid.processing.numMergeBuffers|
-|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. |<= query/mergeBufferMaxNum|
-|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if the QueryBufferPoolStatsMonitor module is included. ||
-|`thread/maxCount`|Number of Druid threads.| |configuration value of druid.processing.numThreads|
-|`thread/active`|Number of active Druid threads. | |< thread/maxCount |
-|`thread/task/pending`|Number of pending tasks in threadpool. | ||
+|`query/failed/count`|number of failed queries|This metric is only available if `QueryCountStatsMonitor` module is included.||
+|`query/interrupted/count`|number of queries interrupted due to cancellation.|This metric is only available if `QueryCountStatsMonitor` module is included.||
+|`query/timeout/count`|number of timed out queries.|This metric is only available if `QueryCountStatsMonitor` module is included.||
+|`query/mergeBufferMaxNum`|Maximum number of merge buffers. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. |configuration value of `druid.processing.numMergeBuffers`|
+|`query/mergeBufferAvailNum`|Number of available merge buffers. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. |<= `query/mergeBufferMaxNum`|
+|`query/intermResultBufferAvailNum`|Number of available buffers used by intermediate query result. |This metric is only available if `QueryBufferPoolStatsMonitor` module is included. ||
+|`thread/maxCount`|Number of Druid threads.| |configuration value of `druid.processing.numThreads`|
+|`thread/active`|Number of active Druid threads. | |< `thread/maxCount` |
+|`thread/task/pending`|Number of pending tasks in thread pool. | ||
 
 ### Jetty
 
