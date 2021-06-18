@@ -51,11 +51,13 @@ LABEL maintainer="Apache Druid Developers <dev@druid.apache.org>"
 COPY --from=busybox /bin/busybox /busybox/busybox
 RUN ["/busybox/busybox", "--install", "/bin"]
 
+COPY --chown=druid:druid --from=builder /opt /opt
+COPY distribution/docker/druid.sh /druid.sh
+
 RUN addgroup -S -g 1000 druid \
  && adduser -S -u 1000 -D -H -h /opt/druid -s /bin/sh -g '' -G druid druid
 
-COPY --chown=druid:druid --from=builder /opt /opt
-COPY distribution/docker/druid.sh /druid.sh
+
 
 # create necessary directories which could be mounted as volume
 #   /opt/druid/var is used to keep individual files(e.g. log) of each Druid service
