@@ -57,8 +57,11 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -69,6 +72,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  */
+@RunWith(Parameterized.class)
 public class LoadRuleTest
 {
   private static final Logger log = new Logger(LoadRuleTest.class);
@@ -90,6 +94,24 @@ public class LoadRuleTest
   private BalancerStrategy balancerStrategy;
 
   private BalancerStrategy mockBalancerStrategy;
+
+  private boolean guildReplicationEnabled;
+
+  public LoadRuleTest(boolean guildReplicationEnabled)
+  {
+    this.guildReplicationEnabled = guildReplicationEnabled;
+  }
+
+  @Parameterized.Parameters(name = "{index}: guildReplicationEnabled:{0}")
+  public static Iterable<Object[]> data()
+  {
+    return Arrays.asList(
+        new Object[][]{
+            {false},
+            {true}
+        }
+    );
+  }
 
   @Before
   public void setUp()
@@ -141,7 +163,7 @@ public class LoadRuleTest
         .addTier(
             "hot",
             new ServerHolder(
-                new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1)
+                new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1, DruidServer.DEFAULT_GUILD)
                     .toImmutableDruidServer(),
                 mockPeon
             )
@@ -156,14 +178,15 @@ public class LoadRuleTest
                     1000,
                     ServerType.HISTORICAL,
                     DruidServer.DEFAULT_TIER,
-                    0
+                    0,
+                    DruidServer.DEFAULT_GUILD
                 ).toImmutableDruidServer(),
                 mockPeon
             )
         )
         .build();
 
-    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, segment), segment);
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment), segment);
 
     Assert.assertEquals(1L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, "hot"));
     Assert.assertEquals(1L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, DruidServer.DEFAULT_TIER));
@@ -171,15 +194,235 @@ public class LoadRuleTest
     EasyMock.verify(throttler, mockPeon, mockBalancerStrategy);
   }
 
+  // This test is only meant for guild replication being enabled.
+  // Test that druid will always work to meet the desired replicants even if it can't meet replication
+  // across more than one guild
+  @Test
+  public void testLoadOntoUsedGuildIfNoServersAvailableOnUnusedGuild()
+  {
+    EasyMock.expect(throttler.canCreateReplicant(EasyMock.anyString())).andReturn(true).anyTimes();
+
+    final LoadQueuePeon mockPeon = createEmptyPeon();
+    mockPeon.loadSegment(EasyMock.anyObject(), EasyMock.anyObject());
+    EasyMock.expectLastCall().times(2);
+
+    LoadRule rule = createLoadRule(ImmutableMap.of(
+        DruidServer.DEFAULT_TIER, 2
+    ));
+
+    final DataSegment segment = createDataSegment("foo");
+
+    ServerHolder holder1 = createServerHolder(DruidServer.DEFAULT_TIER, mockPeon, false);
+    ServerHolder holder2 = new ServerHolder(
+        new DruidServer(
+            "server2",
+            "host2",
+            null,
+            1000,
+            ServerType.HISTORICAL,
+            DruidServer.DEFAULT_TIER,
+            0,
+            DruidServer.DEFAULT_GUILD
+        ).toImmutableDruidServer(),
+        mockPeon
+    );
+
+    throttler.registerReplicantCreation(DruidServer.DEFAULT_TIER, segment.getId(), "host2");
+    EasyMock.expectLastCall().once();
+
+    // Force pick holder1 for the primary
+    EasyMock.expect(
+        mockBalancerStrategy.findNewSegmentHomeReplicator(segment, ImmutableList.of(holder2, holder1)))
+            .andReturn(holder1);
+    EasyMock.expect(mockBalancerStrategy.findNewSegmentHomeReplicator(segment, ImmutableList.of(holder2)))
+            .andDelegateTo(balancerStrategy);
+
+    EasyMock.replay(throttler, mockPeon, mockBalancerStrategy);
+
+    DruidCluster druidCluster = DruidClusterBuilder
+        .newBuilder()
+        .addTier(
+            DruidServer.DEFAULT_TIER,
+            holder1,
+            holder2
+        )
+        .build();
+
+    // This test is written only for guildReplicationEnabled = true. Therefore, not using parameterized value for params
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, true, segment), segment);
+
+    Assert.assertEquals(2L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, DruidServer.DEFAULT_TIER));
+
+    EasyMock.verify(throttler, mockPeon, mockBalancerStrategy);
+  }
+
+  // This test is only meant for guild replication being enabled.
+  // Test that if a primary is loaded to one tier and a replicant is expected in another tier, druid will prefer
+  // to load that replicant on a server that increases guild replication.
+  @Test
+  public void testLoadTwoTierTwoGuilds()
+  {
+    EasyMock.expect(throttler.canCreateReplicant(EasyMock.anyString())).andReturn(true).anyTimes();
+
+    final LoadQueuePeon mockPeon = createEmptyPeon();
+    mockPeon.loadSegment(EasyMock.anyObject(), EasyMock.anyObject());
+    EasyMock.expectLastCall().atLeastOnce();
+
+    LoadRule rule = createLoadRule(ImmutableMap.of(
+        "hot", 1,
+        DruidServer.DEFAULT_TIER, 1
+    ));
+
+    final DataSegment segment = createDataSegment("foo");
+
+    throttler.registerReplicantCreation(DruidServer.DEFAULT_TIER, segment.getId(), "host3");
+    EasyMock.expectLastCall().once();
+
+    // Indeterminate number of times. server2 or server3 could be added to strategy cache for _default_tier
+    // If it is server 2, this will be called 3 times. If it is server3 , this will be called 2 times
+    EasyMock.expect(mockBalancerStrategy.findNewSegmentHomeReplicator(EasyMock.anyObject(), EasyMock.anyObject()))
+            .andDelegateTo(balancerStrategy)
+            .anyTimes();
+
+    EasyMock.replay(throttler, mockPeon, mockBalancerStrategy);
+
+    DruidCluster druidCluster = DruidClusterBuilder
+        .newBuilder()
+        .addTier(
+            "hot",
+            new ServerHolder(
+                new DruidServer(
+                    "server1",
+                    "host1",
+                    null,
+                    1000,
+                    ServerType.HISTORICAL,
+                    "hot",
+                    1,
+                    DruidServer.DEFAULT_GUILD
+                ).toImmutableDruidServer(),
+                mockPeon
+            )
+        )
+        .addTier(
+            DruidServer.DEFAULT_TIER,
+            new ServerHolder(
+                new DruidServer(
+                    "server2",
+                    "host2",
+                    null,
+                    1000,
+                    ServerType.HISTORICAL,
+                    DruidServer.DEFAULT_TIER,
+                    0,
+                    DruidServer.DEFAULT_GUILD
+                ).toImmutableDruidServer(),
+                mockPeon
+            ),
+            new ServerHolder(
+                new DruidServer(
+                    "server3",
+                    "host3",
+                    null,
+                    1000,
+                    ServerType.HISTORICAL,
+                    DruidServer.DEFAULT_TIER,
+                    0,
+                    "guild_2"
+                ).toImmutableDruidServer(),
+                mockPeon
+            )
+        )
+        .build();
+
+    // This test is written only for guildReplicationEnabled = true. Therefore, not using parameterized value for params
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, true, segment), segment);
+
+    Assert.assertEquals(1L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, "hot"));
+    Assert.assertEquals(1L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, DruidServer.DEFAULT_TIER));
+
+    EasyMock.verify(throttler, mockPeon, mockBalancerStrategy);
+  }
+
+  // This test is only meant for guild replication being enabled.
+  // Test that when loading a replica with guild replication enabled, druid will prefer a server that increases
+  // rack distribution for the segment being loaded if that segment lives on only one guild at time of replication.
+  @Test
+  public void testLoadOneTierTwoGuilds()
+  {
+    EasyMock.expect(throttler.canCreateReplicant(EasyMock.anyString())).andReturn(true).anyTimes();
+
+    final LoadQueuePeon mockPeon = createEmptyPeon();
+    mockPeon.loadSegment(EasyMock.anyObject(), EasyMock.anyObject());
+    EasyMock.expectLastCall().atLeastOnce();
+
+    final LoadQueuePeon mockPeonTwo = createEmptyPeon();
+    mockPeonTwo.loadSegment(EasyMock.anyObject(), EasyMock.anyObject());
+    EasyMock.expectLastCall().atLeastOnce();
+
+    LoadRule rule = createLoadRule(ImmutableMap.of(
+        DruidServer.DEFAULT_TIER, 2
+    ));
+
+    final DataSegment segment = createDataSegment("foo");
+
+    ServerHolder holder1 = createServerHolder(DruidServer.DEFAULT_TIER, mockPeon, false);
+    ServerHolder holder2 = createServerHolder(DruidServer.DEFAULT_TIER, mockPeon, false);
+    ServerHolder holder3 = new ServerHolder(
+        new DruidServer(
+            "server3",
+            "host3",
+            null,
+            1000,
+            ServerType.HISTORICAL,
+            DruidServer.DEFAULT_TIER,
+            0,
+            "guild_2"
+        ).toImmutableDruidServer(),
+        mockPeonTwo
+    );
+
+    throttler.registerReplicantCreation(DruidServer.DEFAULT_TIER, segment.getId(), "host3");
+    EasyMock.expectLastCall().once();
+
+    // Force us to pick a server from DruidServer.DEFAULT_GUILD for the primary so we can test guild distribution on the replica assignment
+    EasyMock.expect(
+        mockBalancerStrategy.findNewSegmentHomeReplicator(segment, ImmutableList.of(holder3, holder2, holder1)))
+            .andReturn(holder1);
+    EasyMock.expect(mockBalancerStrategy.findNewSegmentHomeReplicator(segment, ImmutableList.of(holder3)))
+            .andDelegateTo(balancerStrategy);
+
+    EasyMock.replay(throttler, mockPeon, mockPeonTwo, mockBalancerStrategy);
+
+    DruidCluster druidCluster = DruidClusterBuilder
+        .newBuilder()
+        .addTier(
+            DruidServer.DEFAULT_TIER,
+            holder1,
+            holder2,
+            holder3
+        )
+        .build();
+
+    // This test is written only for guildReplicationEnabled = true. Therefore, not using parameterized value for params
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, true, segment), segment);
+
+    Assert.assertEquals(2L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, DruidServer.DEFAULT_TIER));
+
+    EasyMock.verify(throttler, mockPeon, mockPeonTwo, mockBalancerStrategy);
+  }
+
   private DruidCoordinatorRuntimeParams makeCoordinatorRuntimeParams(
       DruidCluster druidCluster,
+      boolean guildReplicationEnabled,
       DataSegment... usedSegments
   )
   {
     return CoordinatorRuntimeParamsTestHelpers
         .newBuilder()
         .withDruidCluster(druidCluster)
-        .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster, false))
+        .withGuildReplicationDirective(guildReplicationEnabled)
+        .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster, false, guildReplicationEnabled))
         .withReplicationManager(throttler)
         .withBalancerStrategy(mockBalancerStrategy)
         .withUsedSegmentsInTest(usedSegments)
@@ -188,13 +431,15 @@ public class LoadRuleTest
 
   private DruidCoordinatorRuntimeParams makeCoordinatorRuntimeParamsWithLoadReplicationOnTimeout(
       DruidCluster druidCluster,
+      boolean guildReplicationEnabled,
       DataSegment... usedSegments
   )
   {
     return CoordinatorRuntimeParamsTestHelpers
         .newBuilder()
         .withDruidCluster(druidCluster)
-        .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster, true))
+        .withGuildReplicationDirective(guildReplicationEnabled)
+        .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster, true, guildReplicationEnabled))
         .withReplicationManager(throttler)
         .withBalancerStrategy(mockBalancerStrategy)
         .withUsedSegmentsInTest(usedSegments)
@@ -223,9 +468,9 @@ public class LoadRuleTest
     EasyMock.replay(throttler, mockPeon, mockBalancerStrategy);
 
     ImmutableDruidServer server1 =
-        new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1).toImmutableDruidServer();
+        new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1, DruidServer.DEFAULT_GUILD).toImmutableDruidServer();
     ImmutableDruidServer server2 =
-        new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 1).toImmutableDruidServer();
+        new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 1, DruidServer.DEFAULT_GUILD).toImmutableDruidServer();
     DruidCluster druidCluster = DruidClusterBuilder
         .newBuilder()
         .addTier("hot", new ServerHolder(server1, mockPeon), new ServerHolder(server2, mockPeon))
@@ -233,7 +478,7 @@ public class LoadRuleTest
 
     CoordinatorStats stats = rule.run(
         null,
-        makeCoordinatorRuntimeParams(druidCluster, segment),
+        makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment),
         segment
     );
 
@@ -251,7 +496,7 @@ public class LoadRuleTest
 
     CoordinatorStats statsAfterLoadPrimary = rule.run(
         null,
-        makeCoordinatorRuntimeParams(afterLoad, segment),
+        makeCoordinatorRuntimeParams(afterLoad, guildReplicationEnabled, segment),
         segment
     );
 
@@ -282,9 +527,9 @@ public class LoadRuleTest
     EasyMock.replay(throttler, emptyPeon, mockBalancerStrategy);
 
     ImmutableDruidServer server1 =
-        new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1).toImmutableDruidServer();
+        new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1, DruidServer.DEFAULT_GUILD).toImmutableDruidServer();
     ImmutableDruidServer server2 =
-        new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 1).toImmutableDruidServer();
+        new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 1, DruidServer.DEFAULT_GUILD).toImmutableDruidServer();
     DruidCluster druidCluster = DruidClusterBuilder
         .newBuilder()
         .addTier("hot", new ServerHolder(server1, emptyPeon), new ServerHolder(server2, emptyPeon))
@@ -292,7 +537,7 @@ public class LoadRuleTest
 
     CoordinatorStats stats = rule.run(
         null,
-        makeCoordinatorRuntimeParamsWithLoadReplicationOnTimeout(druidCluster, segment),
+        makeCoordinatorRuntimeParamsWithLoadReplicationOnTimeout(druidCluster, guildReplicationEnabled, segment),
         segment
     );
 
@@ -310,7 +555,7 @@ public class LoadRuleTest
 
     CoordinatorStats statsAfterLoadPrimary = rule.run(
         null,
-        makeCoordinatorRuntimeParamsWithLoadReplicationOnTimeout(withLoadTimeout, segment),
+        makeCoordinatorRuntimeParamsWithLoadReplicationOnTimeout(withLoadTimeout, guildReplicationEnabled, segment),
         segment
     );
 
@@ -341,9 +586,9 @@ public class LoadRuleTest
     EasyMock.replay(throttler, emptyPeon, mockBalancerStrategy);
 
     ImmutableDruidServer server1 =
-        new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1).toImmutableDruidServer();
+        new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 1, DruidServer.DEFAULT_GUILD).toImmutableDruidServer();
     ImmutableDruidServer server2 =
-        new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 1).toImmutableDruidServer();
+        new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 1, DruidServer.DEFAULT_GUILD).toImmutableDruidServer();
     DruidCluster druidCluster = DruidClusterBuilder
         .newBuilder()
         .addTier("hot", new ServerHolder(server1, emptyPeon), new ServerHolder(server2, emptyPeon))
@@ -351,7 +596,7 @@ public class LoadRuleTest
 
     CoordinatorStats stats = rule.run(
         null,
-        makeCoordinatorRuntimeParams(druidCluster, segment),
+        makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment),
         segment
     );
 
@@ -370,7 +615,7 @@ public class LoadRuleTest
     // Default behavior is to not replicate the timed out segments on other servers
     CoordinatorStats statsAfterLoadPrimary = rule.run(
         null,
-        makeCoordinatorRuntimeParams(withLoadTimeout, segment),
+        makeCoordinatorRuntimeParams(withLoadTimeout, guildReplicationEnabled, segment),
         segment
     );
 
@@ -403,7 +648,7 @@ public class LoadRuleTest
         .addTier(
             "tier1",
             new ServerHolder(
-                new DruidServer("server1", "host1", null, 1000, ServerType.HISTORICAL, "tier1", 0)
+                new DruidServer("server1", "host1", null, 1000, ServerType.HISTORICAL, "tier1", 0, DruidServer.DEFAULT_GUILD)
                     .toImmutableDruidServer(),
                 mockPeon1
             )
@@ -411,12 +656,12 @@ public class LoadRuleTest
         .addTier(
             "tier2",
             new ServerHolder(
-                new DruidServer("server2", "host2", null, 1000, ServerType.HISTORICAL, "tier2", 1)
+                new DruidServer("server2", "host2", null, 1000, ServerType.HISTORICAL, "tier2", 1, DruidServer.DEFAULT_GUILD)
                     .toImmutableDruidServer(),
                 mockPeon2
             ),
             new ServerHolder(
-                new DruidServer("server3", "host3", null, 1000, ServerType.HISTORICAL, "tier2", 1)
+                new DruidServer("server3", "host3", null, 1000, ServerType.HISTORICAL, "tier2", 1, DruidServer.DEFAULT_GUILD)
                     .toImmutableDruidServer(),
                 mockPeon2
             )
@@ -425,7 +670,7 @@ public class LoadRuleTest
 
     final DataSegment segment = createDataSegment("foo");
 
-    final CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, segment), segment);
+    final CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment), segment);
 
     Assert.assertEquals(0L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, "tier1"));
     Assert.assertEquals(1L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, "tier2"));
@@ -451,7 +696,7 @@ public class LoadRuleTest
 
     final DataSegment segment = createDataSegment("foo");
 
-    DruidServer server1 = new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0);
+    DruidServer server1 = new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0, DruidServer.DEFAULT_GUILD);
     server1.addDataSegment(segment);
     DruidServer server2 = new DruidServer(
         "serverNorm",
@@ -460,7 +705,8 @@ public class LoadRuleTest
         1000,
         ServerType.HISTORICAL,
         DruidServer.DEFAULT_TIER,
-        0
+        0,
+        DruidServer.DEFAULT_GUILD
     );
     server2.addDataSegment(segment);
     DruidServer server3 = new DruidServer(
@@ -470,7 +716,8 @@ public class LoadRuleTest
         10,
         ServerType.HISTORICAL,
         DruidServer.DEFAULT_TIER,
-        0
+        0,
+        DruidServer.DEFAULT_GUILD
     );
     DruidCluster druidCluster = DruidClusterBuilder
         .newBuilder()
@@ -482,7 +729,7 @@ public class LoadRuleTest
         )
         .build();
 
-    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, segment), segment);
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment), segment);
 
     Assert.assertEquals(1L, stats.getTieredStat("droppedCount", "hot"));
     Assert.assertEquals(1L, stats.getTieredStat("droppedCount", DruidServer.DEFAULT_TIER));
@@ -510,7 +757,7 @@ public class LoadRuleTest
         .addTier(
             "hot",
             new ServerHolder(
-                new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0)
+                new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0, DruidServer.DEFAULT_GUILD)
                     .toImmutableDruidServer(),
                 mockPeon
             )
@@ -524,7 +771,7 @@ public class LoadRuleTest
         CoordinatorRuntimeParamsTestHelpers
             .newBuilder()
             .withDruidCluster(druidCluster)
-            .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster(), false))
+            .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster(), false, true))
             .withReplicationManager(throttler)
             .withBalancerStrategy(mockBalancerStrategy)
             .withUsedSegmentsInTest(segment)
@@ -552,8 +799,8 @@ public class LoadRuleTest
 
     final DataSegment segment = createDataSegment("foo");
 
-    DruidServer server1 = new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0);
-    DruidServer server2 = new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 0);
+    DruidServer server1 = new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0, DruidServer.DEFAULT_GUILD);
+    DruidServer server2 = new DruidServer("serverHot2", "hostHot2", null, 1000, ServerType.HISTORICAL, "hot", 0, DruidServer.DEFAULT_GUILD);
     server1.addDataSegment(segment);
     server2.addDataSegment(segment);
 
@@ -566,7 +813,7 @@ public class LoadRuleTest
         )
         .build();
 
-    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, segment), segment);
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment), segment);
 
     Assert.assertEquals(1L, stats.getTieredStat("droppedCount", "hot"));
 
@@ -591,7 +838,7 @@ public class LoadRuleTest
         .addTier(
             "hot",
             new ServerHolder(
-                new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0)
+                new DruidServer("serverHot", "hostHot", null, 1000, ServerType.HISTORICAL, "hot", 0, DruidServer.DEFAULT_GUILD)
                     .toImmutableDruidServer(),
                 peon
             )
@@ -605,7 +852,8 @@ public class LoadRuleTest
     DruidCoordinatorRuntimeParams params = CoordinatorRuntimeParamsTestHelpers
         .newBuilder()
         .withDruidCluster(druidCluster)
-        .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster, false))
+        .withGuildReplicationDirective(guildReplicationEnabled)
+        .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster, false, guildReplicationEnabled))
         .withReplicationManager(throttler)
         .withBalancerStrategy(mockBalancerStrategy)
         .withUsedSegmentsInTest(dataSegment1, dataSegment2, dataSegment3)
@@ -650,7 +898,7 @@ public class LoadRuleTest
         .addTier("tier2", createServerHolder("tier2", mockPeon2, false))
         .build();
 
-    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, segment), segment);
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment), segment);
 
     Assert.assertEquals(1L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, "tier2"));
     EasyMock.verify(mockPeon1, mockPeon2, mockBalancerStrategy);
@@ -697,7 +945,7 @@ public class LoadRuleTest
         .addTier("tier2", holder3, holder4)
         .build();
 
-    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, segment), segment);
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment), segment);
 
     Assert.assertEquals(1L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, "tier1"));
     Assert.assertEquals(2L, stats.getTieredStat(LoadRule.ASSIGNED_COUNT, "tier2"));
@@ -739,7 +987,7 @@ public class LoadRuleTest
         )
         .build();
 
-    DruidCoordinatorRuntimeParams params = makeCoordinatorRuntimeParams(druidCluster, segment1, segment2);
+    DruidCoordinatorRuntimeParams params = makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment1, segment2);
     CoordinatorStats stats = rule.run(null, params, segment1);
     Assert.assertEquals(1L, stats.getTieredStat("droppedCount", "tier1"));
     stats = rule.run(null, params, segment2);
@@ -786,11 +1034,106 @@ public class LoadRuleTest
         )
         .build();
 
-    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, segment1), segment1);
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, guildReplicationEnabled, segment1), segment1);
     Assert.assertEquals(1L, stats.getTieredStat("droppedCount", "tier1"));
     Assert.assertEquals(0, mockPeon1.getSegmentsToDrop().size());
     Assert.assertEquals(1, mockPeon2.getSegmentsToDrop().size());
     Assert.assertEquals(0, mockPeon3.getSegmentsToDrop().size());
+
+    EasyMock.verify(throttler);
+  }
+
+  /**
+   * 4 servers serving 1 segment. 2 servers on default guild. 1 server on guild_2. 1 server on guild_3.
+   * Load Rule specifies 2 replicas expected.
+   * Drop will always happen on default guild to retain guild distribution.
+   */
+  @Test
+  public void testDropMultipleGuilds()
+  {
+    final LoadQueuePeon mockPeon1 = new LoadQueuePeonTester();
+    final LoadQueuePeon mockPeon2 = new LoadQueuePeonTester();
+    final LoadQueuePeon mockPeon3 = new LoadQueuePeonTester();
+    final LoadQueuePeon mockPeon4 = new LoadQueuePeonTester();
+
+    final DataSegment segment = createDataSegment("foo");
+
+    DruidServer server1 = new DruidServer(
+        "server1",
+        "host1",
+        null,
+        1000,
+        ServerType.HISTORICAL,
+        DruidServer.DEFAULT_TIER,
+        0,
+        DruidServer.DEFAULT_GUILD
+    );
+    server1.addDataSegment(segment);
+    ServerHolder holder1 = new ServerHolder(server1.toImmutableDruidServer(), mockPeon1, false);
+    DruidServer server2 = new DruidServer(
+        "server2",
+        "host2",
+        null,
+        1000,
+        ServerType.HISTORICAL,
+        DruidServer.DEFAULT_TIER,
+        0,
+        "guild_2"
+    );
+    server2.addDataSegment(segment);
+    ServerHolder holder2 = new ServerHolder(server2.toImmutableDruidServer(), mockPeon2, false);
+    DruidServer server3 = new DruidServer(
+        "server3",
+        "host3",
+        null,
+        1000,
+        ServerType.HISTORICAL,
+        DruidServer.DEFAULT_TIER,
+        0,
+        DruidServer.DEFAULT_GUILD
+    );
+    server3.addDataSegment(segment);
+    ServerHolder holder3 = new ServerHolder(server3.toImmutableDruidServer(), mockPeon3, false);
+    DruidServer server4 = new DruidServer(
+        "server4",
+        "host4",
+        null,
+        1000,
+        ServerType.HISTORICAL,
+        DruidServer.DEFAULT_TIER,
+        0,
+        "guild_3"
+    );
+    server4.addDataSegment(segment);
+    ServerHolder holder4 = new ServerHolder(server4.toImmutableDruidServer(), mockPeon4, false);
+
+    EasyMock.expect(mockBalancerStrategy.pickServersToDrop(EasyMock.anyObject(), EasyMock.anyObject()))
+            .andDelegateTo(balancerStrategy).times(2);
+    EasyMock.replay(throttler, mockBalancerStrategy);
+
+    LoadRule rule = createLoadRule(ImmutableMap.of(
+        DruidServer.DEFAULT_TIER, 2
+    ));
+
+    DruidCluster druidCluster = DruidClusterBuilder
+        .newBuilder()
+        .addTier(
+            DruidServer.DEFAULT_TIER,
+            holder1,
+            holder2,
+            holder3,
+            holder4
+        )
+        .build();
+
+    // This test is written only for guildReplicationEnabled = true. Therefore, not using parameterized value for params
+    CoordinatorStats stats = rule.run(null, makeCoordinatorRuntimeParams(druidCluster, true, segment), segment);
+
+    Assert.assertEquals(2L, stats.getTieredStat("droppedCount", DruidServer.DEFAULT_TIER));
+    Assert.assertEquals(1, mockPeon1.getSegmentsToDrop().size());
+    Assert.assertEquals(0, mockPeon2.getSegmentsToDrop().size());
+    Assert.assertEquals(1, mockPeon3.getSegmentsToDrop().size());
+    Assert.assertEquals(0, mockPeon4.getSegmentsToDrop().size());
 
     EasyMock.verify(throttler);
   }
@@ -889,7 +1232,8 @@ public class LoadRuleTest
         1000,
         ServerType.HISTORICAL,
         tier,
-        0
+        0,
+        DruidServer.DEFAULT_GUILD
     );
   }
 

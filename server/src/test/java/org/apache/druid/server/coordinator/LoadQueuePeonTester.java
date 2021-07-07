@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 public class LoadQueuePeonTester extends CuratorLoadQueuePeon
 {
   private final ConcurrentSkipListSet<DataSegment> segmentsToLoad = new ConcurrentSkipListSet<DataSegment>();
+  private final ConcurrentSkipListSet<DataSegment> segmentsToDrop = new ConcurrentSkipListSet<DataSegment>();
 
   public LoadQueuePeonTester()
   {
@@ -55,7 +56,8 @@ public class LoadQueuePeonTester extends CuratorLoadQueuePeon
             null,
             null,
             10,
-            new Duration("PT1s")
+            new Duration("PT1s"),
+            false
         )
     );
   }
@@ -67,6 +69,21 @@ public class LoadQueuePeonTester extends CuratorLoadQueuePeon
   )
   {
     segmentsToLoad.add(segment);
+  }
+
+  @Override
+  public void dropSegment(
+      DataSegment segment,
+      LoadPeonCallback callback
+  )
+  {
+    segmentsToDrop.add(segment);
+  }
+
+  @Override
+  public ConcurrentSkipListSet<DataSegment> getSegmentsToDrop()
+  {
+    return segmentsToDrop;
   }
 
   @Override

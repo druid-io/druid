@@ -867,6 +867,7 @@ public class DruidCoordinator
                 .withCompactionConfig(getCompactionConfig())
                 .withEmitter(emitter)
                 .withBalancerStrategy(balancerStrategy)
+                .withGuildReplicationDirective(config.isGuildReplicationOn())
                 .build();
 
         boolean coordinationPaused = getDynamicConfigs().getPauseCoordination();
@@ -927,7 +928,7 @@ public class DruidCoordinator
       startPeonsForNewServers(currentServers);
 
       cluster = prepareCluster(params, currentServers);
-      segmentReplicantLookup = SegmentReplicantLookup.make(cluster, getDynamicConfigs().getReplicateAfterLoadTimeout());
+      segmentReplicantLookup = SegmentReplicantLookup.make(cluster, getDynamicConfigs().getReplicateAfterLoadTimeout(), params.isGuildReplicationEnabled());
 
       stopPeonsForDisappearedServers(currentServers);
 

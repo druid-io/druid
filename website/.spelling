@@ -1334,6 +1334,9 @@ i3.8xlarge
  - ../docs/operations/tls-support.md
 CN
 subjectAltNames
+ - ../docs/operations/guild-replication.md
+replicants
+replicant
  - ../docs/querying/aggregations.md
 HyperUnique
 hyperUnique
@@ -1713,6 +1716,7 @@ TrustManager
 TuningConfig
 _N_
 _default
+_default_guild
 _default_tier
 addr
 affinityConfig

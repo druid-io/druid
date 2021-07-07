@@ -38,6 +38,9 @@ export interface CoordinatorDynamicConfig {
   decommissioningMaxPercentOfMaxSegmentsToMove?: number;
   pauseCoordination?: boolean;
   maxNonPrimaryReplicantsToLoad?: number;
+  replicateAfterLoadTimeout?: boolean;
+  guildReplicationMaxPercentOfMaxSegmentsToMove?: number;
+  emitGuildReplicationMetrics?: boolean;
 }
 
 export const COORDINATOR_DYNAMIC_CONFIG_FIELDS: Field<CoordinatorDynamicConfig>[] = [
@@ -246,6 +249,36 @@ export const COORDINATOR_DYNAMIC_CONFIG_FIELDS: Field<CoordinatorDynamicConfig>[
         Tuning this value lower can help reduce the delay in loading primary segments when the
         cluster has a very large number of non-primary replicants to load (such as when a single
         historical drops out of the cluster leaving many under-replicated segments).
+      </>
+    ),
+  },
+  {
+    name: 'guildReplicationMaxPercentOfMaxSegmentsToMove',
+    type: 'number',
+    defaultValue: 0,
+    info: (
+      <>
+        Only used if <Code>druid.coordinator.guildReplication.on=true</Code>. Setting this to a
+        value greater than 0 enables a special phase of balancing. The maxiumum number of segments
+        that may be moved in this phase is the specified percentage of the max number of segments
+        remaining to be moved after segments are moved from decommissioning servers. This phase will
+        only consider segments for moving that are located on fewer than two guilds. By modifying
+        this value, an operator can emphasize or de-emphasize the balancers priority for achieving a
+        state of zero segments who lack distribution across multiple guilds. The higher the value,
+        the more segments that will be moved to gain guild distribution. The value must be between 0
+        and 100. 0 meaning that this phase is skipped.
+      </>
+    ),
+  },
+  {
+    name: 'emitGuildReplicationMetrics',
+    type: 'boolean',
+    defaultValue: false,
+    info: (
+      <>
+        Only used if <Code>druid.coordinator.guildReplication.on=true</Code>. Emits guild
+        replication metrics as a part of the Coordinator duty for emitting metrics and stats. It
+        must be noted that computing these metrics results in compute overhead for the coordinator.
       </>
     ),
   },

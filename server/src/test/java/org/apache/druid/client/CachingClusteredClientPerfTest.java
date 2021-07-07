@@ -92,7 +92,8 @@ public class CachingClusteredClientPerfTest
         Long.MAX_VALUE,
         ServerType.HISTORICAL,
         DruidServer.DEFAULT_TIER,
-        DruidServer.DEFAULT_PRIORITY
+        DruidServer.DEFAULT_PRIORITY,
+        DruidServer.DEFAULT_GUILD
     );
 
     for (int ii = 0; ii < segmentCount; ii++) {

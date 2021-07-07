@@ -30,13 +30,35 @@ import org.joda.time.Duration;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
  */
+@RunWith(Parameterized.class)
 public class KillUnusedSegmentsTest
 {
+  private boolean guildReplicationEnabled;
+
+  public KillUnusedSegmentsTest(boolean guildReplicationEnabled)
+  {
+    this.guildReplicationEnabled = guildReplicationEnabled;
+  }
+
+  @Parameterized.Parameters(name = "{index}: guildReplicationEnabled:{0}")
+  public static Iterable<Object[]> data()
+  {
+    return Arrays.asList(
+        new Object[][]{
+            {false},
+            {true}
+        }
+    );
+  }
+
   @Test
   public void testFindIntervalForKill()
   {
@@ -119,7 +141,8 @@ public class KillUnusedSegmentsTest
             null,
             null,
             1000,
-            Duration.ZERO
+            Duration.ZERO,
+            guildReplicationEnabled
         )
     );
 
