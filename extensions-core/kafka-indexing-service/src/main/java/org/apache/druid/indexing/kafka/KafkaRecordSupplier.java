@@ -178,8 +178,11 @@ public class KafkaRecordSupplier implements RecordSupplier<Integer, Long, KafkaR
     });
   }
 
+  /**
+   * This method is synchronized because multiple threads can attempt to close the record supplier concurrently
+   */
   @Override
-  public void close()
+  public synchronized void close()
   {
     if (closed) {
       return;

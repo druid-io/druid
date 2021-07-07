@@ -535,8 +535,11 @@ public class KinesisRecordSupplier implements RecordSupplier<String, String, Byt
     }
   }
 
+  /**
+   * This method is synchronized because multiple threads can attempt to close the record supplier concurrently
+   */
   @Override
-  public void close()
+  public synchronized void close()
   {
     if (this.closed) {
       return;
