@@ -224,13 +224,6 @@ public class AppenderatorTester implements AutoCloseable
     {
       private boolean mustFail = true;
 
-      @Deprecated
-      @Override
-      public String getPathForHadoop(String dataSource)
-      {
-        return getPathForHadoop();
-      }
-
       @Override
       public String getPathForHadoop()
       {
