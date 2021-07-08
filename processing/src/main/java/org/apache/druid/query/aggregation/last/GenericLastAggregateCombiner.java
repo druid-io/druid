@@ -19,55 +19,51 @@
 
 package org.apache.druid.query.aggregation.last;
 
-import org.apache.druid.query.aggregation.SerializablePairLongFloat;
-import org.apache.druid.segment.BaseLongColumnValueSelector;
+import com.google.common.primitives.Longs;
+import org.apache.druid.collections.SerializablePair;
+import org.apache.druid.query.aggregation.ObjectAggregateCombiner;
 import org.apache.druid.segment.ColumnValueSelector;
 
-public class FloatLastAggregator extends NumericLastAggregator
+import javax.annotation.Nullable;
+
+public class GenericLastAggregateCombiner<T extends SerializablePair<Long, ?>>
+    extends ObjectAggregateCombiner<T>
 {
-  float lastValue;
+  private T lastValue;
 
-  public FloatLastAggregator(BaseLongColumnValueSelector timeSelector,
-                             ColumnValueSelector valueSelector,
-                             boolean needsFoldCheck)
+  private final Class<T> pairClass;
+
+  public GenericLastAggregateCombiner(Class<T> pairClass)
   {
-    super(timeSelector, valueSelector, needsFoldCheck);
-    lastValue = 0;
+    this.pairClass = pairClass;
   }
 
   @Override
-  void setLastValue(ColumnValueSelector valueSelector)
+  public void reset(ColumnValueSelector selector)
   {
-    lastValue = valueSelector.getFloat();
+    lastValue = (T) selector.getObject();
   }
 
   @Override
-  void setLastValue(Number lastValue)
+  public void fold(ColumnValueSelector selector)
   {
-    this.lastValue = lastValue.floatValue();
+    T newValue = (T) selector.getObject();
+
+    if (Longs.compare(lastValue.lhs, newValue.lhs) <= 0) {
+      lastValue = newValue;
+    }
   }
 
+  @Nullable
   @Override
-  public Object get()
-  {
-    return new SerializablePairLongFloat(lastTime, rhsNull ? null : lastValue);
-  }
-
-  @Override
-  public float getFloat()
+  public T getObject()
   {
     return lastValue;
   }
 
   @Override
-  public long getLong()
+  public Class<T> classOfObject()
   {
-    return (long) lastValue;
-  }
-
-  @Override
-  public double getDouble()
-  {
-    return lastValue;
+    return this.pairClass;
   }
 }

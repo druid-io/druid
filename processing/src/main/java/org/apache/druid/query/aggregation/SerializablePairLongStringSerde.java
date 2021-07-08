@@ -45,7 +45,7 @@ import java.nio.ByteBuffer;
 public class SerializablePairLongStringSerde extends ComplexMetricSerde
 {
 
-  private static final String TYPE_NAME = "serializablePairLongString";
+  public static final String TYPE_NAME = "serializablePairLongString";
 
   @Override
   public String getTypeName()
