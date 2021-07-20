@@ -180,7 +180,7 @@ These metrics are only available if the RealtimeMetricsMonitor is included in th
 |`ingest/handoff/count`|Number of handoffs that happened.|dataSource, taskId, taskType.|Varies. Generally greater than 0 once every segment granular period if cluster operating normally|
 |`ingest/sink/count`|Number of sinks not handoffed.|dataSource, taskId, taskType.|1~3|
 |`ingest/events/messageGap`|Time gap between the data time in event and current system time.|dataSource, taskId, taskType.|Greater than 0, depends on the time carried in event |
-|`ingest/notices/queueSize`|Number of pending notices to be processed by the coordinator|dataSource.|Typically 0 and occasionally in lower single digits. Shouldn't be a very high number. |
+|`ingest/notices/queueSize`|Number of pending notices to be processed by the supervisor|dataSource.|Typically 0 and occasionally in lower single digits. Should not be a very high number. |
 |`ingest/notices/time`|Milliseconds taken to process a notice by the supervisor|noticeType.| < 1s. |
 
 
@@ -333,4 +333,3 @@ These metrics are only available if the SysMonitor module is included.
 |`sys/mem/max`|Memory max.||Varies.|
 |`sys/storage/used`|Disk space used.|fsDirName.|Varies.|
 |`sys/cpu`|CPU used.|cpuName, cpuTime.|Varies.|
-
