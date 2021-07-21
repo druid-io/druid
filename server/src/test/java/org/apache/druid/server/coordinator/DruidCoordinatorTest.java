@@ -154,7 +154,8 @@ public class DruidCoordinatorTest extends CuratorTestBase
         null,
         null,
         10,
-        new Duration("PT0s")
+        new Duration("PT0s"),
+        false
     );
     pathChildrenCache = new PathChildrenCache(
         curator,

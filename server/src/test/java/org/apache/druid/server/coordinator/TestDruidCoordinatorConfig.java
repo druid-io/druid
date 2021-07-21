@@ -21,6 +21,8 @@ package org.apache.druid.server.coordinator;
 
 import org.joda.time.Duration;
 
+import javax.annotation.Nullable;
+
 public class TestDruidCoordinatorConfig extends DruidCoordinatorConfig
 {
 
@@ -42,6 +44,7 @@ public class TestDruidCoordinatorConfig extends DruidCoordinatorConfig
   private final Duration coordinatorDatasourceKillDurationToRetain;
   private final Duration getLoadQueuePeonRepeatDelay;
   private final int coordinatorKillMaxSegments;
+  private final boolean coordinatorKillIgnoreDurationToRetain;
 
   public TestDruidCoordinatorConfig(
       Duration coordinatorStartDelay,
@@ -61,7 +64,8 @@ public class TestDruidCoordinatorConfig extends DruidCoordinatorConfig
       Duration coordinatorDatasourceKillPeriod,
       Duration coordinatorDatasourceKillDurationToRetain,
       int coordinatorKillMaxSegments,
-      Duration getLoadQueuePeonRepeatDelay
+      Duration getLoadQueuePeonRepeatDelay,
+      boolean coordinatorKillIgnoreDurationToRetain
   )
   {
     this.coordinatorStartDelay = coordinatorStartDelay;
@@ -82,6 +86,7 @@ public class TestDruidCoordinatorConfig extends DruidCoordinatorConfig
     this.coordinatorDatasourceKillDurationToRetain = coordinatorDatasourceKillDurationToRetain;
     this.coordinatorKillMaxSegments = coordinatorKillMaxSegments;
     this.getLoadQueuePeonRepeatDelay = getLoadQueuePeonRepeatDelay;
+    this.coordinatorKillIgnoreDurationToRetain = coordinatorKillIgnoreDurationToRetain;
   }
 
   @Override
@@ -114,6 +119,7 @@ public class TestDruidCoordinatorConfig extends DruidCoordinatorConfig
     return coordinatorKillPeriod;
   }
 
+  @Nullable
   @Override
   public Duration getCoordinatorKillDurationToRetain()
   {
@@ -190,5 +196,11 @@ public class TestDruidCoordinatorConfig extends DruidCoordinatorConfig
   public Duration getLoadQueuePeonRepeatDelay()
   {
     return getLoadQueuePeonRepeatDelay;
+  }
+
+  @Override
+  public boolean getCoordinatorKillIgnoreDurationToRetain()
+  {
+    return coordinatorKillIgnoreDurationToRetain;
   }
 }
