@@ -258,7 +258,7 @@ public class Calcites
         -1
     );
 
-    return dataType;
+    return typeFactory.createTypeWithNullability(dataType, nullable);
   }
 
   /**
