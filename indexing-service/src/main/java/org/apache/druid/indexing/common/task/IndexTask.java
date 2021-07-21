@@ -530,7 +530,8 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
                 getTaskCompletionUnparseableEvents(),
                 getTaskCompletionRowStats(),
                 errorMsg,
-                segmentAvailabilityConfirmationCompleted
+                segmentAvailabilityConfirmationCompleted,
+                segmentAvailabilityWaitTimeMs
             )
         )
     );
@@ -929,7 +930,7 @@ public class IndexTask extends AbstractBatchIndexTask implements ChatHandler
       if (tuningConfig.getAwaitSegmentAvailabilityTimeoutMillis() > 0 && published != null) {
         ingestionState = IngestionState.SEGMENT_AVAILABILITY_WAIT;
         ArrayList<DataSegment> segmentsToWaitFor = new ArrayList<>(published.getSegments());
-        segmentAvailabilityConfirmationCompleted = waitForSegmentAvailability(
+        waitForSegmentAvailability(
             toolbox,
             segmentsToWaitFor,
             tuningConfig.getAwaitSegmentAvailabilityTimeoutMillis()
