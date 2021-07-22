@@ -219,5 +219,11 @@ public class RecordSupplierInputSourceTest extends InitializedNullHandlingTest
     {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public Map<Integer, Integer> getPositionFromTime(long offsetTime)
+    {
+      throw new UnsupportedOperationException();
+    }
   }
 }

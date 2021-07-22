@@ -208,6 +208,21 @@ public class SupervisorManager
     return true;
   }
 
+  public boolean resetSupervisorToTime(String id, long timestamp)
+  {
+    Preconditions.checkState(started, "SupervisorManager not started");
+    Preconditions.checkNotNull(id, "id");
+
+    Pair<Supervisor, SupervisorSpec> supervisor = supervisors.get(id);
+
+    if (supervisor == null) {
+      return false;
+    }
+
+    supervisor.lhs.resetToTime(timestamp);
+    return true;
+  }
+
   public boolean checkPointDataSourceMetadata(
       String supervisorId,
       int taskGroupId,

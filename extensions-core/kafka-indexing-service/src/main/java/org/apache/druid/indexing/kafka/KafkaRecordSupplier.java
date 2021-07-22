@@ -35,6 +35,7 @@ import org.apache.druid.metadata.DynamicConfigProvider;
 import org.apache.druid.metadata.PasswordProvider;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
@@ -47,6 +48,7 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -164,6 +166,30 @@ public class KafkaRecordSupplier implements RecordSupplier<Integer, Long, KafkaR
         partition.getStream(),
         partition.getPartitionId()
     )));
+  }
+
+  @Override
+  public Map<Integer, Long> getPositionFromTime(long offsetTime)
+  {
+    return wrapExceptions(
+        () -> {
+          Map<TopicPartition, Long> timestampsToSearch = new HashMap<>();
+          for (TopicPartition partition : consumer.assignment()) {
+            timestampsToSearch.put(partition, offsetTime);
+          }
+          Map<TopicPartition, OffsetAndTimestamp> offsetAndTimestamps = consumer.offsetsForTimes(timestampsToSearch);
+          return offsetAndTimestamps
+              .entrySet()
+              .stream()
+              .filter(e -> e.getValue() != null)
+              .collect(
+                  Collectors.toMap(
+                      e -> e.getKey().partition(),
+                      e -> e.getValue().offset()
+                  )
+              );
+        }
+    );
   }
 
   @Override
