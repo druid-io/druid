@@ -19,7 +19,6 @@
 
 package org.apache.druid.storage.azure;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.microsoft.azure.storage.StorageException;
@@ -39,9 +38,6 @@ import java.util.Iterator;
  */
 public class AzureUtils
 {
-
-  @VisibleForTesting
-  static final String AZURE_STORAGE_HOST_ADDRESS = "blob.core.windows.net";
 
   // The azure storage hadoop access pattern is:
   // wasb[s]://<containername>@<accountname>.blob.core.windows.net/<path>
@@ -87,14 +83,14 @@ public class AzureUtils
    * @return a String representing the blob path component of the uri with any leading 'blob.core.windows.net/' string
    * removed characters removed.
    */
-  public static String maybeRemoveAzurePathPrefix(String blobPath)
+  public static String maybeRemoveAzurePathPrefix(String azureStorageHostAddress, String blobPath)
   {
-    boolean blobPathIsHadoop = blobPath.contains(AZURE_STORAGE_HOST_ADDRESS);
+    boolean blobPathIsHadoop = blobPath.contains(azureStorageHostAddress);
 
     if (blobPathIsHadoop) {
       // Remove azure's hadoop prefix to match realtime ingestion path
       return blobPath.substring(
-          blobPath.indexOf(AZURE_STORAGE_HOST_ADDRESS) + AZURE_STORAGE_HOST_ADDRESS.length() + 1);
+          blobPath.indexOf(azureStorageHostAddress) + azureStorageHostAddress.length() + 1);
     } else {
       return blobPath;
     }
@@ -153,4 +149,5 @@ public class AzureUtils
   {
     return RetryUtils.retry(f, AZURE_RETRY, maxTries);
   }
+
 }
